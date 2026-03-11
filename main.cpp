@@ -16,9 +16,10 @@ int main(int argc, char *argv[])
     AndroidTools* pAndroidTools = new AndroidTools(&engine);
     MClient* pMClient = MClient::instance(&engine);
 
-    qDebug() << AndroidTools::getDisplayHeigth();
-    qDebug() << AndroidTools::getDisplayWidth();
-    qDebug() << AndroidTools::getDisplayRefreshRate();
+    DisplayParameters param = AndroidTools::getDisplayParameters();
+    qDebug() << param.width;
+    qDebug() << param.height;
+    qDebug() << param.refreshRate;
 
     qmlRegisterSingletonInstance("androidtools",1,0,"AndroidTools",pAndroidTools);
     qmlRegisterSingletonInstance("mclient",1,0,"MClient",pMClient);

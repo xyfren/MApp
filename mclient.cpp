@@ -7,7 +7,9 @@ MClient::MClient(QObject *parent)
     m_clientThread->start();
     m_pConnectionClient = new ConnectionClient();
     m_pDataClient = new DataClient();
-    m_pFrameManager = new FrameManager(0,0);
+
+    DisplayParameters param = AndroidTools::getDisplayParameters();
+    m_pFrameManager = new FrameManager(param.width,param.height);
 
     // 2. Переносим его
     m_pConnectionClient->moveToThread(m_clientThread);
@@ -159,14 +161,11 @@ void MClient::sendDataC(const QByteArray &data){
 void MClient::sendAPacket(){
     APacket pack;
     pack.type = 100;
-    pack.width = AndroidTools::getDisplayWidth();
-    pack.height = AndroidTools::getDisplayHeigth();
-    pack.refreshRate = AndroidTools::getDisplayRefreshRate();
+    DisplayParameters param = AndroidTools::getDisplayParameters();
+    pack.width = param.width;
+    pack.height = param.height;
+    pack.refreshRate = param.refreshRate;
     pack.udpPort = m_pDataClient->localPort();
-
-    QMetaObject::invokeMethod(m_pFrameManager,"setResolution", Qt::QueuedConnection,
-                                Q_ARG(quint16, pack.width),
-                                Q_ARG(quint16, pack.height));
 
     sendDataC(pack.bytes());
 }

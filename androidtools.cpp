@@ -33,7 +33,26 @@ QJniObject AndroidTools::getWindowManager() {
                                      serviceName.object<jstring>());
 }
 
-qint16 AndroidTools::getDisplayWidth() {
+DisplayParameters AndroidTools::getDisplayParameters(){
+    QJniObject display = getWindowManager().callObjectMethod("getDefaultDisplay", "()Landroid/view/Display;");
+    DisplayParameters param;
+
+    QJniObject point("android/graphics/Point");
+    display.callMethod<void>("getSize", "(Landroid/graphics/Point;)V", point.object());
+
+    param.width = static_cast<quint16>(point.getField<int>("x"));
+    param.height = static_cast<quint16>(point.getField<int>("y"));
+    if (param.width < param.height){
+        quint16 t = param.width;
+        param.width = param.height;
+        param.height = t;
+    }
+    float refreshRate = display.callMethod<jfloat>("getRefreshRate");
+    param.refreshRate = static_cast<qint16>(refreshRate);
+    return param;
+}
+
+quint16 AndroidTools::getDisplayWidth() {
     QJniObject display = getWindowManager().callObjectMethod("getDefaultDisplay", "()Landroid/view/Display;");
 
     // В современном Android рекомендуется использовать WindowMetrics,
@@ -41,22 +60,22 @@ qint16 AndroidTools::getDisplayWidth() {
     QJniObject point("android/graphics/Point");
     display.callMethod<void>("getSize", "(Landroid/graphics/Point;)V", point.object());
 
-    return static_cast<qint16>(point.getField<int>("x"));
+    return static_cast<quint16>(point.getField<int>("x"));
 }
 
-qint16 AndroidTools::getDisplayHeigth() {
+quint16 AndroidTools::getDisplayHeigth() {
     QJniObject display = getWindowManager().callObjectMethod("getDefaultDisplay", "()Landroid/view/Display;");
 
     QJniObject point("android/graphics/Point");
     display.callMethod<void>("getSize", "(Landroid/graphics/Point;)V", point.object());
 
-    return static_cast<qint16>(point.getField<int>("y"));
+    return static_cast<quint16>(point.getField<int>("y"));
 }
 
-qint16 AndroidTools::getDisplayRefreshRate() {
+quint16 AndroidTools::getDisplayRefreshRate() {
     QJniObject display = getWindowManager().callObjectMethod("getDefaultDisplay", "()Landroid/view/Display;");
 
-    // Возвращает float, приводим к qint16
+    // Возвращает float, приводим к quint16
     float refreshRate = display.callMethod<jfloat>("getRefreshRate");
     return static_cast<qint16>(refreshRate);
 }

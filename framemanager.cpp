@@ -31,7 +31,7 @@ void FrameManager::setResolution(quint16 width, quint16 height)
 
     if (!initDecoder()) {
         qCritical() << "FrameManager: decoder re-init failed for"
-                    << width << "x" << height;
+                    << m_width << "x" << m_height;
     }
 }
 
