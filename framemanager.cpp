@@ -26,8 +26,8 @@ void FrameManager::setResolution(quint16 width, quint16 height)
 
     cleanupDecoder();
     m_partialFrames.clear();
-    m_width  = height;
-    m_height = width;
+    m_width  = width;
+    m_height = height;
 
     if (!initDecoder()) {
         qCritical() << "FrameManager: decoder re-init failed for"
@@ -37,7 +37,7 @@ void FrameManager::setResolution(quint16 width, quint16 height)
 
 void FrameManager::processPacket(const QByteArray &data)
 {
-    qDebug() << "aaa";
+
     // Minimum viable datagram: full header must be present.
     if (data.size() < FPACKET_HEADER_SIZE) return;
 
@@ -52,7 +52,7 @@ void FrameManager::processPacket(const QByteArray &data)
     if (hdr->totalParts == 0 || hdr->partSize == 0) return;
     if (hdr->partId >= hdr->totalParts) return;
     if (data.size() < FPACKET_HEADER_SIZE + hdr->partSize) return;
-     qDebug() << "bbb";
+
     const quint64 frameId    = hdr->frameId;
     const quint16 totalParts = hdr->totalParts;
     const quint16 partId     = hdr->partId;
@@ -61,7 +61,7 @@ void FrameManager::processPacket(const QByteArray &data)
 
     // Remove stale incomplete frames to bound memory usage.
     dropStaleFrames(frameId);
-    qDebug() << "ccc";
+
     PartialFrame &pf = m_partialFrames[frameId];
     if (pf.receivedParts == 0) {
         // First fragment seen for this frame — initialise the entry.
@@ -69,6 +69,11 @@ void FrameManager::processPacket(const QByteArray &data)
         // Pre-allocate enough space for all parts at maximum payload size so
         // random-order arrival still lands in the right place.
         pf.buffer.resize(static_cast<int>(totalParts) * FPACKET_MAX_FRAME_SIZE);
+    }
+
+    if (partId == totalParts - 1) {
+        // Точный размер известен только из самого последнего фрагмента кадра
+        pf.expectedSize = offset + size;
     }
 
     // Guard against offset going past the buffer (shouldn't happen with a
@@ -84,11 +89,10 @@ void FrameManager::processPacket(const QByteArray &data)
     pf.receivedParts++;
 
     if (pf.receivedParts == pf.totalParts) {
-        qDebug() << "ddd";
+
         // All fragments received: trim to the actual data size and decode.
         // partOffset of the last fragment + its partSize gives the true size.
-        const int trueSize = static_cast<int>(offset) + static_cast<int>(size);
-        pf.buffer.resize(trueSize);
+        pf.buffer.resize(pf.expectedSize); // <-- ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ РАЗМЕР
 
         decodeFrame(pf.buffer);
         m_partialFrames.remove(frameId);
@@ -116,7 +120,7 @@ bool FrameManager::initDecoder()
     // ── Codec ──────────────────────────────────────────────────────────────────
     // Try the hardware-accelerated MediaCodec decoder first on Android; fall
     // back to the software decoder on any other platform or if unavailable.
-    const AVCodec *codec = avcodec_find_decoder_by_name("h264_mediacodec");
+    const AVCodec *codec = nullptr;// = avcodec_find_decoder_by_name("h264_mediacodec");
     if (!codec) {
         codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     }
@@ -126,14 +130,18 @@ bool FrameManager::initDecoder()
     }
 
     m_codecCtx = avcodec_alloc_context3(codec);
+    m_codecCtx->width = m_width;
+    m_codecCtx->height = m_height;
+    m_codecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
+    m_codecCtx->thread_type = FF_THREAD_SLICE;
     if (!m_codecCtx) return false;
 
     // Low-delay flag reduces decoder latency; safe because the server sends
     // intra-only (every frame is a keyframe, no B/P-frames).
     m_codecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-
-    if (avcodec_open2(m_codecCtx, codec, nullptr) < 0) {
-        qCritical() << "FrameManager: avcodec_open2 failed";
+    int r = 0;
+    if ((r = avcodec_open2(m_codecCtx, codec, nullptr)) < 0) {
+        qCritical() << "FrameManager: avcodec_open2 failed: " << r;
         return false;
     }
 
@@ -189,7 +197,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
     if (!m_codecCtx || !m_packet || !m_yuvFrame || !m_bgraFrame || !m_swsCtx) {
         return false;
     }
-    qDebug() << "eee";
+
     // Allocate a new AVPacket buffer and copy the NAL data into it.
     av_packet_unref(m_packet);
     if (av_new_packet(m_packet, nalData.size()) < 0) {
@@ -198,7 +206,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
     }
     std::memcpy(m_packet->data, nalData.constData(), nalData.size());
 
-    qDebug() << "fff";
+
 
     // Send the complete H.264 NAL unit to the decoder.
     int ret = avcodec_send_packet(m_codecCtx, m_packet);
@@ -207,7 +215,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
         qWarning() << "FrameManager: avcodec_send_packet error" << ret;
         return false;
     }
-    qDebug() << "kkk";
+
     // Retrieve the decoded frame.
     ret = avcodec_receive_frame(m_codecCtx, m_yuvFrame);
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -215,7 +223,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
         // stream, but handle it gracefully).
         return false;
     }
-    qDebug() << "lll";
+
     if (ret < 0) {
         qWarning() << "FrameManager: avcodec_receive_frame error" << ret;
         return false;
@@ -236,7 +244,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
         // wait for the next frame with the updated decoder.
         return false;
     }
-    qDebug() << "mmm";
+
 
     // Convert YUV420P → BGRA.
     sws_scale(m_swsCtx,

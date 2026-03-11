@@ -101,6 +101,7 @@ private:
         QByteArray buffer;         ///< Assembled H.264 data (sized to partOffset+partSize)
         quint16    totalParts = 0; ///< Expected number of fragments
         quint16    receivedParts = 0;
+        quint32    expectedSize = 0;
     };
 
     // Map from frameId to partial-frame state.

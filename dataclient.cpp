@@ -92,7 +92,7 @@ void DataClient::onReadyRead(){
 
         qint64 bytesRead = m_socket->readDatagram(datagram.data(), datagram.size(),
                                                  &senderAddress, &senderPort);
-        qDebug() << "Bytes read: " << bytesRead;
+        // qDebug() << "Bytes read: " << bytesRead;
         if (bytesRead == -1) {
             emit errorOccurred("Failed to read datagram: " + m_socket->errorString());
             continue;
@@ -105,10 +105,8 @@ void DataClient::processData(const QByteArray &data,const QHostAddress& senderAd
     if (data.size() < 2) return ;
 
     const qint16 packetType = *(reinterpret_cast<const uint16_t*>(data.data()));
-    qDebug() << "recv";
     if (senderAddress.toIPv4Address() == m_serverAddress.toIPv4Address() && senderPort == m_serverPort) {
         if (packetType == FPACKET_TYPE_H264 || packetType == 300){
-            qDebug() << "recv";
             emit fPacketReceived(data);
         }
         else {

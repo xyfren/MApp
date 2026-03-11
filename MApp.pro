@@ -8,6 +8,7 @@ LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
 # PKGCONFIG += libavcodec libavformat libavutil libswscale libswresample
 
 SOURCES += \
+        ffmpegdecoder.cpp \
         framemanager.cpp \
         main.cpp \
         androidtools.cpp \
@@ -37,6 +38,7 @@ HEADERS += \
     apacket.h \
     connectionclient.h \
     dataclient.h \
+    ffmpegdecoder.h \
     fpacket.h \
     framemanager.h \
     mclient.h \
