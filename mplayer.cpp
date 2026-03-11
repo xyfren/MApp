@@ -46,6 +46,6 @@ void MPlayer::setVideoOutput(QObject* videoOutput) {
 
 // }
 
-void MPlayer::onFrameReceived(uint64_t frameId, const QVideoFrame& frameImage) {
+void MPlayer::onFrameReceived(const QVideoFrame& frameImage) {
     m_videoSink->setVideoFrame(frameImage);
 }

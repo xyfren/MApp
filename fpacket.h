@@ -8,6 +8,7 @@
 
 #define FPACKET_HEADER_SIZE 20
 #define FPACKET_MAX_FRAME_SIZE 1300 // (65536 - 16)
+#define FPACKET_TYPE_H264 310
 
 //Frame packet
 #pragma pack(push,1)

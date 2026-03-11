@@ -1,5 +1,12 @@
 QT += quick quickcontrols2 core network widgets multimedia
 
+INCLUDEPATH += C:/libs/ffmpeg/android-armv8/include
+LIBS += -LC:/libs/ffmpeg/android-armv8/lib
+LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
+
+# CONFIG += link_pkgconfig
+# PKGCONFIG += libavcodec libavformat libavutil libswscale libswresample
+
 SOURCES += \
         framemanager.cpp \
         main.cpp \

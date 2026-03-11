@@ -23,9 +23,9 @@ ApplicationWindow {
         ignoreUnknownSignals: true
         function onExitRequested() {
             console.log("Monitor запросила выход. Выполняем код...")
-            MClient.disconnectFromServer();
             stackView.pop()
             window.visibility = Window.Maximized
+            MClient.disconnectFromServer();
         }
     }
     Connections {
@@ -34,9 +34,10 @@ ApplicationWindow {
             stackView.push("MonitorPage.qml")
             window.visibility = Window.FullScreen
         }
-        function onDisconneted(){
+        function onDisconnected(){
             if (stackView.currentItem.pageTitle === "Monitor"){
                 stackView.pop();
+                MClient.disconnectFromServer();
             }
         }
     }

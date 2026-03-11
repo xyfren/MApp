@@ -1,4 +1,4 @@
-#include "FrameManager.h"
+#include "framemanager.h"
 
 #include <QDebug>
 #include <cstring>
@@ -20,14 +20,14 @@ FrameManager::~FrameManager()
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-void FrameManager::setResolution(int width, int height)
+void FrameManager::setResolution(quint16 width, quint16 height)
 {
     if (width == m_width && height == m_height) return;
 
     cleanupDecoder();
     m_partialFrames.clear();
-    m_width  = width;
-    m_height = height;
+    m_width  = height;
+    m_height = width;
 
     if (!initDecoder()) {
         qCritical() << "FrameManager: decoder re-init failed for"
@@ -37,8 +37,10 @@ void FrameManager::setResolution(int width, int height)
 
 void FrameManager::processPacket(const QByteArray &data)
 {
+    qDebug() << "aaa";
     // Minimum viable datagram: full header must be present.
     if (data.size() < FPACKET_HEADER_SIZE) return;
+
 
     const FPacketHeader *hdr =
         reinterpret_cast<const FPacketHeader *>(data.constData());
@@ -50,7 +52,7 @@ void FrameManager::processPacket(const QByteArray &data)
     if (hdr->totalParts == 0 || hdr->partSize == 0) return;
     if (hdr->partId >= hdr->totalParts) return;
     if (data.size() < FPACKET_HEADER_SIZE + hdr->partSize) return;
-
+     qDebug() << "bbb";
     const quint64 frameId    = hdr->frameId;
     const quint16 totalParts = hdr->totalParts;
     const quint16 partId     = hdr->partId;
@@ -59,7 +61,7 @@ void FrameManager::processPacket(const QByteArray &data)
 
     // Remove stale incomplete frames to bound memory usage.
     dropStaleFrames(frameId);
-
+    qDebug() << "ccc";
     PartialFrame &pf = m_partialFrames[frameId];
     if (pf.receivedParts == 0) {
         // First fragment seen for this frame — initialise the entry.
@@ -82,6 +84,7 @@ void FrameManager::processPacket(const QByteArray &data)
     pf.receivedParts++;
 
     if (pf.receivedParts == pf.totalParts) {
+        qDebug() << "ddd";
         // All fragments received: trim to the actual data size and decode.
         // partOffset of the last fragment + its partSize gives the true size.
         const int trueSize = static_cast<int>(offset) + static_cast<int>(size);
@@ -134,6 +137,7 @@ bool FrameManager::initDecoder()
         return false;
     }
 
+
     // ── Decoded YUV frame ──────────────────────────────────────────────────────
     m_yuvFrame = av_frame_alloc();
     if (!m_yuvFrame) return false;
@@ -185,7 +189,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
     if (!m_codecCtx || !m_packet || !m_yuvFrame || !m_bgraFrame || !m_swsCtx) {
         return false;
     }
-
+    qDebug() << "eee";
     // Allocate a new AVPacket buffer and copy the NAL data into it.
     av_packet_unref(m_packet);
     if (av_new_packet(m_packet, nalData.size()) < 0) {
@@ -194,6 +198,8 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
     }
     std::memcpy(m_packet->data, nalData.constData(), nalData.size());
 
+    qDebug() << "fff";
+
     // Send the complete H.264 NAL unit to the decoder.
     int ret = avcodec_send_packet(m_codecCtx, m_packet);
     av_packet_unref(m_packet); // release the input buffer immediately
@@ -201,7 +207,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
         qWarning() << "FrameManager: avcodec_send_packet error" << ret;
         return false;
     }
-
+    qDebug() << "kkk";
     // Retrieve the decoded frame.
     ret = avcodec_receive_frame(m_codecCtx, m_yuvFrame);
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -209,6 +215,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
         // stream, but handle it gracefully).
         return false;
     }
+    qDebug() << "lll";
     if (ret < 0) {
         qWarning() << "FrameManager: avcodec_receive_frame error" << ret;
         return false;
@@ -229,6 +236,7 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
         // wait for the next frame with the updated decoder.
         return false;
     }
+    qDebug() << "mmm";
 
     // Convert YUV420P → BGRA.
     sws_scale(m_swsCtx,
@@ -245,6 +253,6 @@ bool FrameManager::decodeFrame(const QByteArray &nalData)
                m_bgraFrame->linesize[0],
                QImage::Format_ARGB32);
 
-    emit frameDecoded(img.copy());
+    emit frameDecoded(QVideoFrame(img));
     return true;
 }

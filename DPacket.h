@@ -7,15 +7,16 @@
 #include <QByteArray>
 
 #pragma pack(push, 1)
-struct DPacket {
-    quint16 type = 200;
 
-    QByteArray bytes() const {
-        QByteArray byteArray(sizeof(DPacket), 0);
-        std::memcpy(byteArray.data(), this, sizeof(DPacket));
-        return byteArray;
-    }
-};
+// struct DPacket {
+//     quint16 type = 200;
+
+//     QByteArray bytes() const {
+//         QByteArray byteArray(sizeof(DPacket), 0);
+//         std::memcpy(byteArray.data(), this, sizeof(DPacket));
+//         return byteArray;
+//     }
+// };
 
 struct RDPacket {
     quint16 type = 201;

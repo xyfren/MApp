@@ -21,49 +21,6 @@ Page {
         anchors.fill: parent
         anchors.margins: 10
         spacing: 10
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
-            Layout.alignment: Qt.AlignCenter
-            MButton {
-                id: btn_disconnect
-                text: "Отключиться"
-                Layout.preferredWidth: 100
-                Layout.preferredHeight: 40
-                Layout.alignment: Qt.AlignCenter
-
-                onClicked: {
-                    MClient.disconnectFromServer();
-                }
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
-
-            TextField {
-                id: textInput
-                Layout.fillWidth: true
-                Layout.preferredHeight: 40
-                font.pixelSize: 14
-
-                onAccepted: btn.clicked()
-            }
-
-            MButton {
-                id: btn_addText
-                text: "Добавить"
-                Layout.preferredWidth: 100
-                Layout.preferredHeight: 40
-
-                onClicked: {
-                    var text = textInput.text.trim();
-                    logArea.append(text)
-                    MClient.sendMessage(text)
-                }
-            }
-
-        }
 
         ServerList{
             Layout.fillWidth: true

@@ -7,7 +7,7 @@ MClient::MClient(QObject *parent)
     m_clientThread->start();
     m_pConnectionClient = new ConnectionClient();
     m_pDataClient = new DataClient();
-    m_pFrameManager = new FrameManager();
+    m_pFrameManager = new FrameManager(0,0);
 
     // 2. Переносим его
     m_pConnectionClient->moveToThread(m_clientThread);
@@ -18,7 +18,7 @@ MClient::MClient(QObject *parent)
 
     // DataClient signals
     connect(m_pDataClient,&DataClient::rdPacketReceived,this,&MClient::onRDPacketReceived);
-    connect(m_pDataClient,&DataClient::fPacketReceived,m_pFrameManager,&FrameManager::onFPacketReceived);
+    connect(m_pDataClient,&DataClient::fPacketReceived,m_pFrameManager,&FrameManager::processPacket);
 
     connect(m_pDataClient, &DataClient::addLog,[this](const QString& log){
         emit addLog(log);
@@ -41,12 +41,12 @@ MClient::MClient(QObject *parent)
     });
 
     //FrameManager signals
-    connect(m_pFrameManager,&FrameManager::frameComplete,[this](uint64_t frameId, const QVideoFrame& frame){
-        emit frameReceived(frameId,frame);
+    connect(m_pFrameManager,&FrameManager::frameDecoded,[this](const QVideoFrame& frame){
+        emit frameReceived(frame);
     });
 
-    m_pFindTimer = new QTimer();
-    connect(m_pFindTimer, &QTimer::timeout,this,&MClient::sendDPacket);
+    // m_pFindTimer = new QTimer();
+    // connect(m_pFindTimer, &QTimer::timeout,this,&MClient::sendDPacket);
 }
 
 MClient::~MClient()
@@ -107,13 +107,7 @@ void MClient::sendMessage(const QString &message){
 
 void MClient::onConnected(){
     if (m_pDataClient->state() != QAbstractSocket::UnconnectedState){
-        APacket pack;
-        pack.type = 100;
-        pack.width = AndroidTools::getDisplayWidth();
-        pack.height = AndroidTools::getDisplayHeigth();
-        pack.refreshRate = AndroidTools::getDisplayRefreshRate();
-        pack.udpPort = m_pDataClient->localPort();
-        sendDataC(pack.bytes());
+        sendAPacket();
         emit connected();
     }
 }
@@ -129,24 +123,27 @@ void MClient::onRAPacketReceived(const RAPacket& packet){
 }
 
 void MClient::onRDPacketReceived(const RDPacket& packet){
-    addLog(QString::number(packet.dataPort));
-    addLog(QString::number(packet.connectionPort));
-    addLog(QHostAddress(packet.ipAddress).toString());
-    addLog(QString::number(packet.response));
-    if (packet.response == 0){
-        emit serverFound(QHostAddress(packet.ipAddress).toString(),packet.connectionPort,packet.dataPort);
+    if (m_serverFinding){
+        addLog(QString::number(packet.dataPort));
+        addLog(QString::number(packet.connectionPort));
+        addLog(QHostAddress(packet.ipAddress).toString());
+        addLog(QString::number(packet.response));
+        if (packet.response == 0){
+            emit serverFound(QHostAddress(packet.ipAddress).toString(),packet.connectionPort,packet.dataPort);
+        }
     }
 }
 
 void MClient::startFindServer(){
-    if (m_pFindTimer)
-        m_pFindTimer->start(3000);
-
+    // if (m_pFindTimer)
+    //     m_pFindTimer->start(3000);
+    m_serverFinding = true;
 }
 
 void MClient::stopFindServer(){
-    if (m_pFindTimer)
-        m_pFindTimer->stop();
+    // if (m_pFindTimer)
+    //     m_pFindTimer->stop();
+    m_serverFinding = false;
 }
 
 void MClient::sendDataD(const QByteArray &data){
@@ -159,8 +156,23 @@ void MClient::sendDataC(const QByteArray &data){
                               Q_ARG(QByteArray, data));
 }
 
+void MClient::sendAPacket(){
+    APacket pack;
+    pack.type = 100;
+    pack.width = AndroidTools::getDisplayWidth();
+    pack.height = AndroidTools::getDisplayHeigth();
+    pack.refreshRate = AndroidTools::getDisplayRefreshRate();
+    pack.udpPort = m_pDataClient->localPort();
+
+    QMetaObject::invokeMethod(m_pFrameManager,"setResolution", Qt::QueuedConnection,
+                                Q_ARG(quint16, pack.width),
+                                Q_ARG(quint16, pack.height));
+
+    sendDataC(pack.bytes());
+}
+
 void MClient::sendDPacket(){
-    DPacket packet;
-    QMetaObject::invokeMethod(m_pDataClient, "broadcastData", Qt::QueuedConnection,
-                              Q_ARG(QByteArray, packet.bytes()));
+    // DPacket packet;
+    // QMetaObject::invokeMethod(m_pDataClient, "broadcastData", Qt::QueuedConnection,
+    //                           Q_ARG(QByteArray, packet.bytes()));
 }

@@ -4,24 +4,15 @@
 #include <QObject>
 #include <QByteArray>
 #include <QImage>
+#include <QVideoFrame>
 #include <QMap>
+#include "fpacket.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 }
-
-// ─── Wire-protocol constants (must match server FPacket.h) ───────────────────
-
-// Packet type sent by the server for H.264-encoded frame fragments.
-static constexpr quint16 FPACKET_TYPE_H264 = 310;
-
-// Size of the packed FPacket header on the wire (bytes).
-static constexpr int FPACKET_HEADER_SIZE = 20;
-
-// Maximum payload bytes per UDP datagram (server splits frames at this boundary).
-static constexpr int FPACKET_MAX_FRAME_SIZE = 1300;
 
 // Binary-compatible mirror of the server's FPacket header (packed, LE).
 // Layout:
@@ -75,6 +66,7 @@ public:
     explicit FrameManager(int width, int height, QObject *parent = nullptr);
     ~FrameManager() override;
 
+public slots:
     /**
      * @brief Feed one raw UDP datagram to the reassembler/decoder.
      *
@@ -92,7 +84,7 @@ public:
      * Tears down and re-initialises the FFmpeg decoder and swscale context.
      * Any in-flight partial frames are discarded.
      */
-    void setResolution(int width, int height);
+    void setResolution(quint16 width, quint16 height);
 
 signals:
     /**
@@ -100,7 +92,7 @@ signals:
      * The QImage is in QImage::Format_ARGB32 and is a deep copy — safe to pass
      * across threads or store beyond the slot call.
      */
-    void frameDecoded(const QImage &image);
+    void frameDecoded(const QVideoFrame &frame);
 
 private:
     // ── Reassembly state ──────────────────────────────────────────────────────

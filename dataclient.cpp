@@ -9,6 +9,11 @@ DataClient::DataClient(QObject *parent):
     connect(m_socket, &QUdpSocket::stateChanged, this, &DataClient::onStateChanged);
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
             this, &DataClient::onErrorOccurred);
+
+    if (!m_socket->bind(QHostAddress::Any, 12346, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+        emit errorOccurred("Failed to bind socket: " + m_socket->errorString());
+        return;
+    }
 }
 
 DataClient::~DataClient(){
@@ -41,7 +46,7 @@ void DataClient::connectToServer(){
     }
 
     // Биндим сокет к любому доступному порту
-    if (!m_socket->bind(QHostAddress::Any, 0, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+    if (!m_socket->bind(QHostAddress::Any, 12346, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
         emit errorOccurred("Failed to bind socket: " + m_socket->errorString());
         return;
     }
@@ -87,7 +92,7 @@ void DataClient::onReadyRead(){
 
         qint64 bytesRead = m_socket->readDatagram(datagram.data(), datagram.size(),
                                                  &senderAddress, &senderPort);
-        // qDebug() << "Bytes read: " << bytesRead;
+        qDebug() << "Bytes read: " << bytesRead;
         if (bytesRead == -1) {
             emit errorOccurred("Failed to read datagram: " + m_socket->errorString());
             continue;
@@ -100,8 +105,10 @@ void DataClient::processData(const QByteArray &data,const QHostAddress& senderAd
     if (data.size() < 2) return ;
 
     const qint16 packetType = *(reinterpret_cast<const uint16_t*>(data.data()));
+    qDebug() << "recv";
     if (senderAddress.toIPv4Address() == m_serverAddress.toIPv4Address() && senderPort == m_serverPort) {
-        if (packetType == 300){
+        if (packetType == FPACKET_TYPE_H264 || packetType == 300){
+            qDebug() << "recv";
             emit fPacketReceived(data);
         }
         else {

@@ -27,7 +27,7 @@ public:
 
 private slots:
     // void onFrameReceived(uint64_t frameId, const QByteArray& frameData);
-    void onFrameReceived(uint64_t frameId, const QVideoFrame& frameImage);
+    void onFrameReceived(const QVideoFrame& frameImage);
 
 private:
     QObject* m_videoOutput;

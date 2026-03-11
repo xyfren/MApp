@@ -15,7 +15,7 @@
 #include "framemanager.h"
 
 #include "apacket.h"
-#include "DPacket.h"
+#include "dpacket.h"
 #include "fpacket.h"
 
 class MClient: public QObject
@@ -53,7 +53,7 @@ signals:
     void errorOccurred(const QString &errorString);
 
     void serverFound(const QString &serverAddress,quint16 connectionPort,quint16 dataPort);
-    void frameReceived(uint64_t frameId, const QVideoFrame& frameImage);
+    void frameReceived(const QVideoFrame& frame);
 
     void connected();
     void disconnected();
@@ -66,6 +66,7 @@ private:
     void sendDataD(const QByteArray &data);
     void sendDataC(const QByteArray &data);
 
+    void sendAPacket();
     void sendDPacket();
 
     QThread* m_clientThread;
@@ -74,7 +75,8 @@ private:
     DataClient* m_pDataClient;
     FrameManager* m_pFrameManager;
 
-    QTimer* m_pFindTimer;
+    // QTimer* m_pFindTimer;
+    bool m_serverFinding;
 };
 
 #endif // MCLIENT_H
