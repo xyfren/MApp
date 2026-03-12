@@ -20,7 +20,7 @@ MClient::MClient(QObject *parent)
 
     // DataClient signals
     connect(m_pDataClient,&DataClient::rdPacketReceived,this,&MClient::onRDPacketReceived);
-    connect(m_pDataClient,&DataClient::fPacketReceived,m_pFrameManager,&FrameManager::processPacket);
+    connect(m_pDataClient,&DataClient::sPacketReceived,m_pFrameManager,&FrameManager::onSPacketReceived);
 
     connect(m_pDataClient, &DataClient::addLog,[this](const QString& log){
         emit addLog(log);
@@ -43,7 +43,7 @@ MClient::MClient(QObject *parent)
     });
 
     //FrameManager signals
-    connect(m_pFrameManager,&FrameManager::frameDecoded,[this](const QVideoFrame& frame){
+    connect(m_pFrameManager,&FrameManager::frameComplete,[this](const QVideoFrame& frame){
         emit frameReceived(frame);
     });
 

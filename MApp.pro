@@ -1,5 +1,7 @@
 QT += quick quickcontrols2 core network widgets multimedia
 
+CONFIG += c++20
+
 INCLUDEPATH += C:/libs/ffmpeg/android-armv8/include
 LIBS += -LC:/libs/ffmpeg/android-armv8/lib
 LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
@@ -10,6 +12,7 @@ LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
 SOURCES += \
         ffmpegdecoder.cpp \
         framemanager.cpp \
+        jpegdecoder.cpp \
         main.cpp \
         androidtools.cpp \
         connectionclient.cpp \
@@ -41,8 +44,11 @@ HEADERS += \
     ffmpegdecoder.h \
     fpacket.h \
     framemanager.h \
+    idecoder.h \
+    jpegdecoder.h \
     mclient.h \
-    mplayer.h
+    mplayer.h \
+    spacket.h
 
 DISTFILES += \
     LogArea.qml \

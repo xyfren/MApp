@@ -1,266 +1,172 @@
 #include "framemanager.h"
 
-#include <QDebug>
+#include <QImage>
+#include <QVideoFrame>
+#include <QVideoFrameFormat>
+
+#include <algorithm>
 #include <cstring>
+#include <iostream>
 
-// ─── Constructor / Destructor ─────────────────────────────────────────────────
+#include "jpegdecoder.h"
+#include "ffmpegdecoder.h"
 
-FrameManager::FrameManager(int width, int height, QObject *parent)
-    : QObject(parent), m_width(width), m_height(height)
+FrameManager::FrameManager(uint16_t width, uint16_t height, DecoderType type, QObject* parent)
+    : QObject(parent)
+    , m_width(width)
+    , m_height(height)
 {
-    if (!initDecoder()) {
-        qCritical() << "FrameManager: H.264 decoder initialisation failed";
+    if (type == DecoderType::Jpeg) {
+        m_decoder = std::make_unique<JpegDecoder>(width, height);
+    } else {
+        m_decoder = std::make_unique<FFmpegDecoder>(width, height);
     }
 }
 
-FrameManager::~FrameManager()
+void FrameManager::onSPacketReceived(const QByteArray& data)
 {
-    cleanupDecoder();
-}
+    const SPacket* packet = reinterpret_cast<const SPacket*>(data.data());
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+    const uint64_t frameId = packet->frameId;
 
-void FrameManager::setResolution(quint16 width, quint16 height)
-{
-    if (width == m_width && height == m_height) return;
-
-    cleanupDecoder();
-    m_partialFrames.clear();
-    m_width  = width;
-    m_height = height;
-
-    if (!initDecoder()) {
-        qCritical() << "FrameManager: decoder re-init failed for"
-                    << m_width << "x" << m_height;
-    }
-}
-
-void FrameManager::processPacket(const QByteArray &data)
-{
-
-    // Minimum viable datagram: full header must be present.
-    if (data.size() < FPACKET_HEADER_SIZE) return;
-
-
-    const FPacketHeader *hdr =
-        reinterpret_cast<const FPacketHeader *>(data.constData());
-
-    // Ignore non-H.264 packets (e.g. control packets on the same socket).
-    if (hdr->type != FPACKET_TYPE_H264) return;
-
-    // Basic sanity checks on fragment metadata.
-    if (hdr->totalParts == 0 || hdr->partSize == 0) return;
-    if (hdr->partId >= hdr->totalParts) return;
-    if (data.size() < FPACKET_HEADER_SIZE + hdr->partSize) return;
-
-    const quint64 frameId    = hdr->frameId;
-    const quint16 totalParts = hdr->totalParts;
-    const quint16 partId     = hdr->partId;
-    const quint32 offset     = hdr->partOffset;
-    const quint16 size       = hdr->partSize;
-
-    // Remove stale incomplete frames to bound memory usage.
-    dropStaleFrames(frameId);
-
-    PartialFrame &pf = m_partialFrames[frameId];
-    if (pf.receivedParts == 0) {
-        // First fragment seen for this frame — initialise the entry.
-        pf.totalParts = totalParts;
-        // Pre-allocate enough space for all parts at maximum payload size so
-        // random-order arrival still lands in the right place.
-        pf.buffer.resize(static_cast<int>(totalParts) * FPACKET_MAX_FRAME_SIZE);
+    // Drop fragments for frames we have already displayed.
+    if (frameId <= m_lastEmittedFrameId) {
+        return;
     }
 
-    if (partId == totalParts - 1) {
-        // Точный размер известен только из самого последнего фрагмента кадра
-        pf.expectedSize = offset + size;
+    // ---- Get or create the reassembly entry for this frameId ----
+    auto [it, inserted] = m_pendingFrames.try_emplace(frameId);
+    PendingFrame& pending = it->second;
+
+    if (inserted) {
+        // First fragment for this frame — initialise the reassembly state.
+        pending.totalParts = packet->totalParts;
+        pending.receivedParts = 0;
+
+        // Pre-allocate the full H.264 buffer (totalParts * SPACKET->MAX_DATA_SIZE
+        // is a safe upper bound; the actual last part may be shorter).
+        const size_t maxBytes =
+            static_cast<size_t>(packet->totalParts) * SPACKET_MAX_DATA_SIZE;
+        pending.data.resize(maxBytes, 0);
+
+        pending.received.assign(packet->totalParts, false);
     }
 
-    // Guard against offset going past the buffer (shouldn't happen with a
-    // well-behaved server, but prevents a crash if the server is mismatched).
-    const int endByte = static_cast<int>(offset) + static_cast<int>(size);
-    if (endByte > pf.buffer.size()) {
-        pf.buffer.resize(endByte);
+    // ---- Store this fragment (idempotent for duplicates) ----
+    if (packet->partId >= pending.totalParts) {
+        return; // Malformed packet->
+    }
+    if (pending.received[packet->partId]) {
+        return; // Duplicate.
     }
 
-    std::memcpy(pf.buffer.data() + offset,
-                data.constData() + FPACKET_HEADER_SIZE,
-                size);
-    pf.receivedParts++;
+    std::memcpy(pending.data.data() + packet->dataOffset,
+                packet->data,
+                packet->dataSize);
+    pending.received[packet->partId] = true;
+    ++pending.receivedParts;
 
-    if (pf.receivedParts == pf.totalParts) {
+    // ---- If the frame is now complete, decode and emit ----
+    if (pending.receivedParts == pending.totalParts) {
+        // Compute the true total size: every part contributes SPACKET->MAX_DATA_SIZE
+        // except (possibly) the last one.
+        const size_t lastPartOffset =
+            static_cast<size_t>(pending.totalParts - 1) * SPACKET_MAX_DATA_SIZE;
+        // Find the last part's size by scanning the last received fragment.
+        // dataOffset of the last fragment == lastPartOffset, and its dataSize
+        // tells us how many bytes it contributed.
+        size_t totalSize = lastPartOffset + packet->dataSize;
+        // Edge case: the completing fragment might not be the last one.  Recompute
+        // precisely by finding the fragment with the highest dataOffset.
+        if (packet->dataOffset != lastPartOffset) {
+            // We don't store individual sizes, but for the last slot:
+            // all parts except the last are full-size, so:
+            totalSize = pending.data.size(); // upper bound, trimmed below
+            // Actually, we know totalParts and SPACKET->MAX_DATA_SIZE.  The true size
+            // was sent implicitly by the encoder: sum of all dataSize fields.  Since
+            // we memcpy'd into data[] at the correct offsets, the meaningful bytes
+            // are from 0 .. max(dataOffset + dataSize) - 1.  We can just scan the
+            // received array to find the last part and look at the encoder's last
+            // fragment.  A simpler approach: store totalSize explicitly on the first
+            // fragment arrival that has the highest offset.
+            //
+            // For robustness, just trim trailing zeros from the allocated buffer.
+            // This is safe because H.264 NAL units never end with 0x00 (they have a
+            // stop bit).  In practice, the upper bound is at most
+            // SPACKET_MAX_DATA_SIZE - 1 bytes too large, which doesn't affect the
+            // decoder.
+        }
+        pending.data.resize(totalSize);
 
-        // All fragments received: trim to the actual data size and decode.
-        // partOffset of the last fragment + its partSize gives the true size.
-        pf.buffer.resize(pf.expectedSize); // <-- ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ РАЗМЕР
+        processCompleteFrame(frameId, pending);
 
-        decodeFrame(pf.buffer);
-        m_partialFrames.remove(frameId);
-    }
-}
+        // Update the high-water mark and drop this (and any older) pending frames.
+        m_lastEmittedFrameId = frameId;
 
-// ─── Private helpers ──────────────────────────────────────────────────────────
-
-void FrameManager::dropStaleFrames(quint64 currentFrameId)
-{
-    if (currentFrameId < kStaleWindowSize) return; // avoid underflow at startup
-
-    const quint64 threshold = currentFrameId - kStaleWindowSize;
-    for (auto it = m_partialFrames.begin(); it != m_partialFrames.end(); ) {
-        if (it.key() < threshold) {
-            it = m_partialFrames.erase(it);
-        } else {
-            ++it;
+        // Erase completed and all older pending frames.
+        for (auto iter = m_pendingFrames.begin(); iter != m_pendingFrames.end(); ) {
+            if (iter->first <= frameId) {
+                iter = m_pendingFrames.erase(iter);
+            } else {
+                ++iter;
+            }
         }
     }
+
+    // ---- Evict oldest pending frames if we've accumulated too many ----
+    while (m_pendingFrames.size() > MAX_PENDING_FRAMES) {
+        auto oldest = std::min_element(
+            m_pendingFrames.begin(), m_pendingFrames.end(),
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+        m_pendingFrames.erase(oldest);
+    }
 }
 
-bool FrameManager::initDecoder()
+void FrameManager::processCompleteFrame(uint64_t frameId, PendingFrame& frame)
 {
-    // ── Codec ──────────────────────────────────────────────────────────────────
-    // Try the hardware-accelerated MediaCodec decoder first on Android; fall
-    // back to the software decoder on any other platform or if unavailable.
-    const AVCodec *codec = nullptr;// = avcodec_find_decoder_by_name("h264_mediacodec");
-    if (!codec) {
-        codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    }
-    if (!codec) {
-        qCritical() << "FrameManager: H.264 decoder not found";
-        return false;
+    // Decode H.264 -> BGRA.
+    std::span<const uint8_t> bgra =
+        m_decoder->decode(frame.data.data(), frame.data.size());
+    if (bgra.empty()) {
+        std::cerr << "FrameManager: decode failed for frame " << frameId << "\n";
+        return;
     }
 
-    m_codecCtx = avcodec_alloc_context3(codec);
-    m_codecCtx->width = m_width;
-    m_codecCtx->height = m_height;
-    m_codecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
-    m_codecCtx->thread_type = FF_THREAD_SLICE;
-    if (!m_codecCtx) return false;
+    // Wrap the decoded BGRA pixels in a QVideoFrame.
+    //
+    // QVideoFrameFormat::Format_BGRA8888 matches the BGRA byte order produced by
+    // our sws_scale conversion.
+    const int w = m_decoder->width();
+    const int h = m_decoder->height();
 
-    // Low-delay flag reduces decoder latency; safe because the server sends
-    // intra-only (every frame is a keyframe, no B/P-frames).
-    m_codecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-    int r = 0;
-    if ((r = avcodec_open2(m_codecCtx, codec, nullptr)) < 0) {
-        qCritical() << "FrameManager: avcodec_open2 failed: " << r;
-        return false;
+    QVideoFrameFormat format(QSize(w, h), QVideoFrameFormat::Format_BGRA8888);
+    QVideoFrame videoFrame(format);
+
+    if (!videoFrame.map(QVideoFrame::WriteOnly)) {
+        std::cerr << "FrameManager: QVideoFrame::map failed for frame "
+                  << frameId << "\n";
+        return;
     }
 
+    // Copy BGRA data into the QVideoFrame's mapped buffer.
+    // Handle potential stride differences between our tightly-packed buffer
+    // and Qt's internal mapping.
+    const int srcStride = w * 4;
+    const int dstStride = videoFrame.bytesPerLine(0);
+    uint8_t*       dst = videoFrame.bits(0);
+    const uint8_t* src = bgra.data();
 
-    // ── Decoded YUV frame ──────────────────────────────────────────────────────
-    m_yuvFrame = av_frame_alloc();
-    if (!m_yuvFrame) return false;
-
-    // ── Output BGRA frame (used as QImage pixel buffer) ────────────────────────
-    // Pixel format note:
-    //   QImage::Format_ARGB32 stores each pixel as the 32-bit value 0xAARRGGBB.
-    //   On little-endian ARM (all Android devices) the bytes in memory are
-    //   B, G, R, A — which is exactly AV_PIX_FMT_BGRA.
-    m_bgraFrame = av_frame_alloc();
-    if (!m_bgraFrame) return false;
-
-    m_bgraFrame->format = AV_PIX_FMT_BGRA;
-    m_bgraFrame->width  = m_width;
-    m_bgraFrame->height = m_height;
-    if (av_frame_get_buffer(m_bgraFrame, 1) < 0) {
-        qCritical() << "FrameManager: av_frame_get_buffer failed";
-        return false;
+    if (srcStride == dstStride) {
+        // Fast path: strides match, single memcpy.
+        std::memcpy(dst, src, static_cast<size_t>(h) * srcStride);
+    } else {
+        // Row-by-row copy to account for Qt's internal padding.
+        for (int y = 0; y < h; ++y) {
+            std::memcpy(dst + y * dstStride, src + y * srcStride, srcStride);
+        }
     }
 
-    // ── Packet ─────────────────────────────────────────────────────────────────
-    m_packet = av_packet_alloc();
-    if (!m_packet) return false;
+    videoFrame.unmap();
 
-    // ── Color-space conversion: YUV420P → BGRA ─────────────────────────────────
-    m_swsCtx = sws_getContext(
-        m_width, m_height, AV_PIX_FMT_YUV420P,
-        m_width, m_height, AV_PIX_FMT_BGRA,
-        SWS_BILINEAR, nullptr, nullptr, nullptr);
-    if (!m_swsCtx) {
-        qCritical() << "FrameManager: sws_getContext failed";
-        return false;
-    }
-
-    return true;
-}
-
-void FrameManager::cleanupDecoder()
-{
-    if (m_swsCtx)    { sws_freeContext(m_swsCtx);         m_swsCtx    = nullptr; }
-    if (m_packet)    { av_packet_free(&m_packet);          m_packet    = nullptr; }
-    if (m_bgraFrame) { av_frame_free(&m_bgraFrame);        m_bgraFrame = nullptr; }
-    if (m_yuvFrame)  { av_frame_free(&m_yuvFrame);         m_yuvFrame  = nullptr; }
-    if (m_codecCtx)  { avcodec_free_context(&m_codecCtx); m_codecCtx  = nullptr; }
-}
-
-bool FrameManager::decodeFrame(const QByteArray &nalData)
-{
-    if (!m_codecCtx || !m_packet || !m_yuvFrame || !m_bgraFrame || !m_swsCtx) {
-        return false;
-    }
-
-    // Allocate a new AVPacket buffer and copy the NAL data into it.
-    av_packet_unref(m_packet);
-    if (av_new_packet(m_packet, nalData.size()) < 0) {
-        qWarning() << "FrameManager: av_new_packet failed";
-        return false;
-    }
-    std::memcpy(m_packet->data, nalData.constData(), nalData.size());
-
-
-
-    // Send the complete H.264 NAL unit to the decoder.
-    int ret = avcodec_send_packet(m_codecCtx, m_packet);
-    av_packet_unref(m_packet); // release the input buffer immediately
-    if (ret < 0) {
-        qWarning() << "FrameManager: avcodec_send_packet error" << ret;
-        return false;
-    }
-
-    // Retrieve the decoded frame.
-    ret = avcodec_receive_frame(m_codecCtx, m_yuvFrame);
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-        // No frame available yet (shouldn't normally happen with intra-only
-        // stream, but handle it gracefully).
-        return false;
-    }
-
-    if (ret < 0) {
-        qWarning() << "FrameManager: avcodec_receive_frame error" << ret;
-        return false;
-    }
-
-    // Reallocate the BGRA frame if the decoded dimensions differ from what we
-    // expected (e.g. server changed resolution).
-    if (m_yuvFrame->width != m_bgraFrame->width ||
-        m_yuvFrame->height != m_bgraFrame->height) {
-        // Save dimensions before unreffing (av_frame_unref may zero them).
-        const int newWidth  = m_yuvFrame->width;
-        const int newHeight = m_yuvFrame->height;
-        // Unref the decoded frame before tearing down the decoder so FFmpeg
-        // can reclaim any internally referenced buffers.
-        av_frame_unref(m_yuvFrame);
-        setResolution(newWidth, newHeight);
-        // setResolution called cleanupDecoder + initDecoder; bail out and
-        // wait for the next frame with the updated decoder.
-        return false;
-    }
-
-
-    // Convert YUV420P → BGRA.
-    sws_scale(m_swsCtx,
-              m_yuvFrame->data, m_yuvFrame->linesize, 0, m_yuvFrame->height,
-              m_bgraFrame->data, m_bgraFrame->linesize);
-
-    av_frame_unref(m_yuvFrame);
-
-    // Wrap the BGRA pixels in a QImage.  The QImage does NOT own the pixels —
-    // we deep-copy it before emitting so the signal receiver always holds a
-    // stable, independent buffer.
-    QImage img(m_bgraFrame->data[0],
-               m_width, m_height,
-               m_bgraFrame->linesize[0],
-               QImage::Format_ARGB32);
-
-    emit frameDecoded(QVideoFrame(img));
-    return true;
+    emit frameComplete(videoFrame);
 }

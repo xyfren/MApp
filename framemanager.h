@@ -1,132 +1,52 @@
-#ifndef FRAMEMANAGER_H
-#define FRAMEMANAGER_H
+#pragma once
 
 #include <QObject>
-#include <QByteArray>
-#include <QImage>
 #include <QVideoFrame>
-#include <QMap>
-#include "fpacket.h"
+#include <QVideoFrameFormat>
+#include <vector>
+#include <unordered_map>
+#include <cstdint>
 
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
-}
+#include "ffmpegdecoder.h"
+#include "spacket.h"
 
-// Binary-compatible mirror of the server's FPacket header (packed, LE).
-// Layout:
-//   offset  0 : type       (uint16)
-//   offset  2 : frameId    (uint64)
-//   offset 10 : totalParts (uint16)
-//   offset 12 : partId     (uint16)
-//   offset 14 : partOffset (uint32)
-//   offset 18 : partSize   (uint16)
-//   offset 20 : partData[partSize]
-#pragma pack(push, 1)
-struct FPacketHeader {
-    quint16 type;
-    quint64 frameId;
-    quint16 totalParts;
-    quint16 partId;
-    quint32 partOffset;
-    quint16 partSize;
+enum class DecoderType {
+    FFmpeg,
+    Jpeg
 };
-#pragma pack(pop)
 
-// ─── FrameManager ─────────────────────────────────────────────────────────────
-
-/**
- * @brief Reassembles fragmented H.264 UDP frames and decodes them to QImage.
- *
- * Usage:
- *   1. Create an instance once you know the video dimensions (from the server's
- *      auth response / APacket).
- *   2. Connect the frameDecoded() signal to your display widget.
- *   3. Call processPacket() for every UDP datagram received from the server.
- *
- * Thread safety: processPacket() must be called from a single thread (e.g. the
- * Qt network thread or the main thread).  The frameDecoded() signal is emitted
- * synchronously in that same thread.
- *
- * Dependencies: libavcodec, libavutil, libswscale (FFmpeg ≥ 4.0).
- * On Android these are usually provided by a pre-built FFmpeg AAR or compiled
- * from source; see README.md for details.
- */
 class FrameManager : public QObject
 {
     Q_OBJECT
 
 public:
-    /**
-     * @param width   Frame width in pixels (must match the server monitor config).
-     * @param height  Frame height in pixels.
-     * @param parent  Optional Qt parent object.
-     */
-    explicit FrameManager(int width, int height, QObject *parent = nullptr);
-    ~FrameManager() override;
-
-public slots:
-    /**
-     * @brief Feed one raw UDP datagram to the reassembler/decoder.
-     *
-     * When the last fragment of a frame arrives, the assembled H.264 NAL unit
-     * buffer is decoded and frameDecoded() is emitted.
-     *
-     * Fragments that belong to frames older than the current frame window are
-     * silently discarded to avoid unbounded memory growth on packet loss.
-     */
-    void processPacket(const QByteArray &data);
-
-    /**
-     * @brief Resize the decoder for a new resolution.
-     *
-     * Tears down and re-initialises the FFmpeg decoder and swscale context.
-     * Any in-flight partial frames are discarded.
-     */
-    void setResolution(quint16 width, quint16 height);
+    explicit FrameManager(uint16_t width, uint16_t height, DecoderType type = DecoderType::Jpeg, QObject* parent = nullptr);
 
 signals:
-    /**
-     * Emitted once per fully decoded frame.
-     * The QImage is in QImage::Format_ARGB32 and is a deep copy — safe to pass
-     * across threads or store beyond the slot call.
-     */
-    void frameDecoded(const QVideoFrame &frame);
+    // Emitted when a complete frame has been decoded and is ready for display.
+    void frameComplete(const QVideoFrame& frame);
 
+public slots:
+    // Receives individual SPacket fragments from the network layer.
+    void onSPacketReceived(const QByteArray& data);
 private:
-    // ── Reassembly state ──────────────────────────────────────────────────────
-
-    struct PartialFrame {
-        QByteArray buffer;         ///< Assembled H.264 data (sized to partOffset+partSize)
-        quint16    totalParts = 0; ///< Expected number of fragments
-        quint16    receivedParts = 0;
-        quint32    expectedSize = 0;
+    struct PendingFrame {
+        uint16_t             totalParts   = 0;
+        uint16_t             receivedParts = 0;
+        std::vector<uint8_t> data;          // Reassembled H.264 byte stream.
+        std::vector<bool>    received;      // Which parts we have already received.
     };
 
-    // Map from frameId to partial-frame state.
-    QMap<quint64, PartialFrame> m_partialFrames;
+    void processCompleteFrame(uint64_t frameId, PendingFrame& frame);
 
-    /// Drop frames with IDs more than kStaleWindowSize behind currentFrameId.
-    static constexpr quint64 kStaleWindowSize = 4;
-    void dropStaleFrames(quint64 currentFrameId);
+    std::unique_ptr<IDecoder> m_decoder;
 
-    // ── FFmpeg decoder ────────────────────────────────────────────────────────
+    uint16_t m_width = 0;
+    uint16_t m_height = 0;
 
-    int m_width  = 0;
-    int m_height = 0;
+    std::unordered_map<uint64_t, PendingFrame> m_pendingFrames;
 
-    AVCodecContext *m_codecCtx  = nullptr;
-    AVFrame        *m_yuvFrame  = nullptr; ///< Decoded YUV420P frame
-    AVFrame        *m_bgraFrame = nullptr; ///< Converted BGRA frame (QImage buffer)
-    AVPacket       *m_packet    = nullptr;
-    SwsContext     *m_swsCtx    = nullptr;
+    uint64_t m_lastEmittedFrameId = 0;
 
-    bool initDecoder();
-    void cleanupDecoder();
-
-    /// Decode one complete H.264 NAL unit buffer and emit frameDecoded().
-    bool decodeFrame(const QByteArray &nalData);
+    static constexpr size_t MAX_PENDING_FRAMES = 8;
 };
-
-#endif // FRAMEMANAGER_H

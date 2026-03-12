@@ -16,7 +16,7 @@
 
 #include "apacket.h"
 #include "dpacket.h"
-#include "fpacket.h"
+#include "spacket.h"
 
 class MClient: public QObject
 {

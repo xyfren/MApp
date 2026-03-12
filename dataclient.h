@@ -7,8 +7,8 @@
 #include <QTimer>
 #include <QErrorMessage>
 
-#include "DPacket.h"
-#include "fpacket.h"
+#include "dpacket.h"
+#include "spacket.h"
 
 class DataClient : public QObject
 {
@@ -41,6 +41,7 @@ signals:
     // void dataReceived(const QByteArray data);
     void rdPacketReceived(const RDPacket &packet);
     void fPacketReceived(const QByteArray& data);
+    void sPacketReceived(const QByteArray& data);
 
 private:
     void processData(const QByteArray &data,const QHostAddress& senderAddress,quint16 senderPort);
