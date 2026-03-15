@@ -62,6 +62,14 @@ void AndroidTools::setFullScreen(bool enable) {
         if (!window.isValid()) return;
 
         if (enable) {
+            // Разрешаем контенту заходить под вырезы (чёлка/punch-hole камера)
+            // LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES = 1 (API 28+)
+            QJniObject layoutParams = window.callObjectMethod("getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+            if (layoutParams.isValid()) {
+                layoutParams.setField<jint>("layoutInDisplayCutoutMode", 1);
+                window.callMethod<void>("setAttributes", "(Landroid/view/WindowManager$LayoutParams;)V", layoutParams.object());
+            }
+
             // Режим "Под куполом": контент заходит под вырезы и панели
             // WindowInsetsController.setDecorFitsSystemWindows(false)
             window.callMethod<void>("setDecorFitsSystemWindows", "(Z)V", false);
@@ -85,6 +93,14 @@ void AndroidTools::setFullScreen(bool enable) {
                 decorView.callMethod<void>("setSystemUiVisibility", "(I)V", flags);
             }
         } else {
+            // Возвращаем стандартный режим вырезов
+            // LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT = 0
+            QJniObject layoutParams = window.callObjectMethod("getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+            if (layoutParams.isValid()) {
+                layoutParams.setField<jint>("layoutInDisplayCutoutMode", 0);
+                window.callMethod<void>("setAttributes", "(Landroid/view/WindowManager$LayoutParams;)V", layoutParams.object());
+            }
+
             // Возвращаем всё как было
             window.callMethod<void>("setDecorFitsSystemWindows", "(Z)V", true);
             QJniObject controller = window.callObjectMethod("getInsetsController", "()Landroid/view/WindowInsetsController;");

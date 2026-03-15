@@ -27,9 +27,9 @@ ApplicationWindow {
         function onExitRequested() {
             console.log("Monitor запросила выход. Выполняем код...")
             stackView.pop()
+            AndroidTools.setFullScreen(false)
             window.visibility = Window.Maximized
             MClient.disconnectFromServer();
-
         }
     }
     Connections {
@@ -43,6 +43,8 @@ ApplicationWindow {
         function onDisconnected(){
             if (stackView.currentItem.pageTitle === "Monitor"){
                 stackView.pop();
+                AndroidTools.setFullScreen(false)
+                window.visibility = Window.Maximized
                 MClient.disconnectFromServer();
             }
         }
