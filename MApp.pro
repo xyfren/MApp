@@ -20,7 +20,7 @@ SOURCES += \
         mclient.cpp \
         mplayer.cpp
 
-resources.files = Main.qml MainPage.qml MonitorPage.qml LogArea.qml ServerList.qml MPlayerOutput.qml MButton.qml mclient.cpp mclient.h dpacket.h
+resources.files = Main.qml MainPage.qml MonitorPage.qml LogArea.qml ServerList.qml MPlayerOutput.qml MButton.qml mclient.cpp androidtools.h mclient.h dpacket.h
 resources.prefix = /
 RESOURCES += resources
 
@@ -46,6 +46,7 @@ HEADERS += \
     framemanager.h \
     idecoder.h \
     jpegdecoder.h \
+    mappsettings.h \
     mclient.h \
     mplayer.h \
     spacket.h
@@ -60,6 +61,7 @@ DISTFILES += \
     android/AndroidManifest.xml \
     android/build.gradle \
     android/res/values/libs.xml \
+    android/res/values/styles.xml \
     android/res/xml/qtprovider_paths.xml
 
 contains(ANDROID_TARGET_ARCH,arm64-v8a) {

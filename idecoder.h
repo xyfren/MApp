@@ -3,13 +3,16 @@
 
 #include <cstdint>
 #include <span>
+#include <QVideoFrame>
+#include <QVideoFrameFormat>
+#include <QImage>
 
 class IDecoder
 {
 public:
     virtual ~IDecoder() = default;
 
-    virtual std::span<const uint8_t> decode(const uint8_t* data, size_t size) = 0;
+    virtual QVideoFrame& decode(const uint8_t* h264Data, size_t size) = 0;
 
     virtual int width() const = 0;
     virtual int height() const = 0;

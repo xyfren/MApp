@@ -15,13 +15,20 @@ class AndroidTools : public QObject {
     Q_OBJECT
     QML_ELEMENT // Важно для QML регистрации
 
+
 public:
     AndroidTools(QObject *parent = nullptr);
+
+
+    Q_INVOKABLE void enableEdgeToEdge();
+    Q_INVOKABLE void setFullScreen(bool enable);
 
     static DisplayParameters getDisplayParameters();
 
 public slots:
     static QJniObject getWindowManager();
+
+
 
 private slots:
     static quint16 getDisplayWidth();

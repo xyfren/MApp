@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QByteArray>
 #include <QDebug>
+#include <mappsettings.h>
 
 #pragma pack(push, 1)
 struct APacket {
@@ -12,6 +13,9 @@ struct APacket {
     quint16 height = 0;
     quint16 refreshRate = 0;
     quint16 udpPort = 0;
+
+    CoderType coderType = CoderType::Null;
+    ConnectionType connectionType = ConnectionType::Null;
 
     QByteArray bytes() const {
         QByteArray byteArray(sizeof(APacket), 0);

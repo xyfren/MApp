@@ -3,6 +3,7 @@ import QtQuick.Controls.Basic 2.15
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 import mclient
+import androidtools
 
 ApplicationWindow {
     id: window
@@ -11,6 +12,8 @@ ApplicationWindow {
     visible: true
     title: "Screen"
     visibility: Window.Maximized
+
+    // flags: Qt.FramelessWindowHint | Qt.Window
 
     StackView {
         id: stackView
@@ -26,13 +29,16 @@ ApplicationWindow {
             stackView.pop()
             window.visibility = Window.Maximized
             MClient.disconnectFromServer();
+
         }
     }
     Connections {
         target: MClient
         function onAuthorized(){
-            stackView.push("MonitorPage.qml")
             window.visibility = Window.FullScreen
+            // AndroidTools.setFullScreen(true)
+            stackView.push("MonitorPage.qml")
+            AndroidTools.setFullScreen(true)
         }
         function onDisconnected(){
             if (stackView.currentItem.pageTitle === "Monitor"){

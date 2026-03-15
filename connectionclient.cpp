@@ -26,7 +26,7 @@ ConnectionClient::ConnectionClient(QObject *parent)
 
 ConnectionClient::~ConnectionClient()
 {
-    m_manualDisconnect = true;
+    // m_manualDisconnect = true;
     m_socket->disconnectFromHost();
 }
 
@@ -51,7 +51,7 @@ void ConnectionClient::connectToServer()
         });
     }
     else{
-        m_manualDisconnect = false;
+        // m_manualDisconnect = false;
         m_socket->connectToHost(m_serverAddress, m_serverPort);
     }
     return;
@@ -59,8 +59,8 @@ void ConnectionClient::connectToServer()
 
 void ConnectionClient::disconnectFromServer()
 {
-    m_manualDisconnect = true;
-    m_reconnectionTimer->stop();
+    // m_manualDisconnect = true;
+    // m_reconnectionTimer->stop();
 
     if (m_socket->state() != QAbstractSocket::UnconnectedState) {
         m_socket->disconnectFromHost();
@@ -119,7 +119,7 @@ void ConnectionClient::reconnect()
 
 void ConnectionClient::onConnected()
 {
-    m_reconnectionTimer->stop();
+    // m_reconnectionTimer->stop();
     emit connected();
     addLog("Подключен к серверу");
 }
@@ -130,11 +130,11 @@ void ConnectionClient::onDisconnected()
     addLog("Отключен от сервера");
 
     // Авто-переподключение только если отключение не было ручным
-    if (!m_manualDisconnect && !m_serverAddress.isNull() && m_serverPort > 0) {
-        m_reconnectionTimer->start();
-    }
+    // if (!m_manualDisconnect && !m_serverAddress.isNull() && m_serverPort > 0) {
+    //     m_reconnectionTimer->start();
+    // }
 
-    m_manualDisconnect = false; // Сбрасываем флаг для следующих отключение
+    // m_manualDisconnect = false; // Сбрасываем флаг для следующих отключение
 }
 
 void ConnectionClient::onErrorOccurred(QAbstractSocket::SocketError error)

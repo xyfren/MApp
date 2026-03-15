@@ -9,6 +9,7 @@
 #include <QTimer>
 #include <QErrorMessage>
 
+#include "mappsettings.h"
 #include "androidtools.h"
 #include "connectionclient.h"
 #include "dataclient.h"

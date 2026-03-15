@@ -39,6 +39,7 @@ MClient::MClient(QObject *parent)
         emit addLog(log);
     });
     connect(m_pConnectionClient, &ConnectionClient::errorOccurred,[this](const QString& errorMessage){
+        disconnectFromServer();
         emit errorOccurred(errorMessage);
     });
 
@@ -166,6 +167,13 @@ void MClient::sendAPacket(){
     pack.height = param.height;
     pack.refreshRate = param.refreshRate;
     pack.udpPort = m_pDataClient->localPort();
+
+    MAppSettings& settings = MAppSettings::getInstance();
+    pack.coderType = settings.coderType;
+    pack.connectionType = settings.connectionType;
+
+    QMetaObject::invokeMethod(m_pFrameManager, "setDecoderType", Qt::QueuedConnection,
+                              Q_ARG(CoderType, settings.coderType));
 
     sendDataC(pack.bytes());
 }
