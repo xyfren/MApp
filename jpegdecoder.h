@@ -12,7 +12,7 @@ public:
     explicit JpegDecoder(uint16_t width, uint16_t height);
     ~JpegDecoder() override;
 
-    QVideoFrame& decode(const uint8_t* data, size_t size) override;
+    QVideoFrame decode(const uint8_t* data, size_t size) override;
 
     int width() const override { return m_width; }
     int height() const override { return m_height; }

@@ -5,9 +5,6 @@
 FFmpegDecoder::FFmpegDecoder(uint16_t width, uint16_t height)
     : m_width(width), m_height(height)
 {
-    QVideoFrameFormat videoFrameFormat(QSize(width,height),QVideoFrameFormat::Format_NV12);
-    QVideoFrame videoFrame(videoFrameFormat);
-    m_videoFrame = videoFrame;
 
     if (!initialize()) {
         qCritical() << "FFmpegDecoder: initialization failed";
@@ -21,8 +18,8 @@ FFmpegDecoder::~FFmpegDecoder()
 
 bool FFmpegDecoder::initialize()
 {
+    // const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    // const AVCodec* codec = avcodec_find_decoder_by_name("h264_mediacodec");
     if (!codec) {
         qCritical() << "FFmpegDecoder: H.264 decoder not found";
         return false;
@@ -38,7 +35,7 @@ bool FFmpegDecoder::initialize()
     m_codecCtx->width       = m_width;
     m_codecCtx->height      = m_height;
 
-    m_codecCtx->pix_fmt = AV_PIX_FMT_NV12;
+    m_codecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
     // Настройки для Low Latency
     m_codecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
@@ -67,60 +64,71 @@ void FFmpegDecoder::cleanup()
     if (m_codecCtx)     { avcodec_free_context(&m_codecCtx); m_codecCtx     = nullptr; }
 }
 
-QVideoFrame& FFmpegDecoder::decode(const uint8_t* h264Data, size_t size)
+QVideoFrame FFmpegDecoder::decode(const uint8_t* h264Data, size_t size)
 {
+    QVideoFrameFormat videoFrameFormat(QSize(m_width, m_height), QVideoFrameFormat::Format_YUV420P);
+    QVideoFrame videoFrame(videoFrameFormat);
 
-
+    // qDebug() << "aaa";
     if (!m_codecCtx || !m_decodedFrame || !m_packet) {
-        return m_videoFrame;
+        return videoFrame;
     }
 
     m_packet->data = const_cast<uint8_t*>(h264Data);
     m_packet->size = static_cast<int>(size);
+    // qDebug() << "bbb";
 
     int ret = avcodec_send_packet(m_codecCtx, m_packet);
     if (ret < 0) {
-        qCritical() << "FFmpegDecoder: avcodec_send_packet failed (" << ret << ")";
-        return m_videoFrame;
+        char errbuf[128];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        qCritical() << "FFmpegDecoder: avcodec_send_packet error:" << errbuf << "Size:" << size;
+        return videoFrame;
     }
 
     ret = avcodec_receive_frame(m_codecCtx, m_decodedFrame);
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-        // Ожидаемое поведение для неполных кадров
-        return m_videoFrame;
-    } else if (ret < 0) {
-        qCritical() << "FFmpegDecoder: avcodec_receive_frame failed (" << ret << ")";
-        return m_videoFrame;
+    if (ret < 0) {
+        if (ret != AVERROR(EAGAIN)) { // EAGAIN - это норма, значит нужно больше данных
+            char errbuf[128];
+            av_strerror(ret, errbuf, sizeof(errbuf));
+            qCritical() << "FFmpegDecoder: avcodec_receive_frame error:" << errbuf;
+        }
+        return videoFrame;
     }
-
+    // qDebug() << "ddd";
     const int w = m_decodedFrame->width;
     const int h = m_decodedFrame->height;
 
 
 
-    if (!m_videoFrame.map(QVideoFrame::WriteOnly)) {
+    if (!videoFrame.map(QVideoFrame::WriteOnly)) {
         qCritical() << "FFmpegDecoder: Failed to map QVideoFrame";
-        return m_videoFrame;
+        return videoFrame;
     }
 
-    for (int plane = 0; plane < 2; ++plane) {
+    for (int plane = 0; plane < 3; ++plane) {
         const uint8_t* src = m_decodedFrame->data[plane];
-        uint8_t* dst = m_videoFrame.bits(plane);
-        const int srcStride = m_decodedFrame->linesize[plane];
-        const int dstStride = m_videoFrame.bytesPerLine(plane);
+        uint8_t* dst = videoFrame.bits(plane);
 
+        const int srcStride = m_decodedFrame->linesize[plane];
+        const int dstStride = videoFrame.bytesPerLine(plane);
+
+        // Правильный расчет размеров для каждой плоскости
+        const int planeWidth = (plane == 0) ? w : w / 2;  // ширина в пикселях
         const int planeHeight = (plane == 0) ? h : h / 2;
-        const int planeWidthInBytes = w;
 
         if (srcStride == dstStride) {
+            // Если строки совпадают - копируем всё
             std::memcpy(dst, src, static_cast<size_t>(planeHeight) * srcStride);
         } else {
+            // Копируем построчно
             for (int y = 0; y < planeHeight; ++y) {
-                std::memcpy(dst + y * dstStride, src + y * srcStride, planeWidthInBytes);
+                std::memcpy(dst + y * dstStride,
+                            src + y * srcStride,
+                            planeWidth);  // planeWidth уже в байтах!
             }
         }
     }
-
-    m_videoFrame.unmap();
-    return m_videoFrame;
+    videoFrame.unmap();
+    return videoFrame;
 }

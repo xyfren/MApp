@@ -153,7 +153,7 @@ void ConnectionClient::onErrorOccurred(QAbstractSocket::SocketError error)
 void ConnectionClient::onReadyRead()
 {
     QByteArray data = m_socket->readAll();
-
+    qDebug() << "[Connection] Байты прочитаны: " << data.size();
     processData(data);
 }
 

@@ -105,25 +105,22 @@ void DataClient::processData(const QByteArray &data,const QHostAddress& senderAd
     if (data.size() < 2) return ;
 
     const qint16 packetType = *(reinterpret_cast<const uint16_t*>(data.data()));
-    if (senderAddress.toIPv4Address() == m_serverAddress.toIPv4Address() && senderPort == m_serverPort) {
-        if (packetType == 300){
-            emit fPacketReceived(data);
-        }
-        else if (packetType == SPACKET_TYPE_H264 || packetType == SPACKET_TYPE_JPEG){
+    qDebug() << "Новый пакет: " + QString::number(packetType);
+    if (packetType == 300) {
+        emit fPacketReceived(data);
+    }
+    else if (packetType == SPACKET_TYPE_H264 || packetType == SPACKET_TYPE_JPEG){
+        if (senderAddress.toIPv4Address() == m_serverAddress.toIPv4Address() && senderPort == m_serverPort) {
+            qDebug() << "Приш " ;
             emit sPacketReceived(data);
         }
-        else {
-            qDebug() << "Неизвестный пакет: " + QString::number(packetType);
-        }
+    }
+    else if (packetType == 201){
+        RDPacket packet = RDPacket::fromBytes(data);
+        emit rdPacketReceived(packet);
     }
     else {
-        if (packetType == 201){
-            RDPacket packet = RDPacket::fromBytes(data);
-            emit rdPacketReceived(packet);
-        }
-        else {
-            emit addLog("Неизвестный пакет");
-        }
+        qDebug() << "Неизвестный пакет: " + QString::number(packetType);
     }
 }
 

@@ -12,7 +12,7 @@ JpegDecoder::~JpegDecoder()
 {
 }
 
-QVideoFrame& JpegDecoder::decode(const uint8_t* data, size_t size)
+QVideoFrame JpegDecoder::decode(const uint8_t* data, size_t size)
 {
     // Парсим сырые JPEG-данные
     QImage img = QImage::fromData(data, size, "JPEG");

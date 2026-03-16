@@ -63,7 +63,7 @@ void FrameManager::onSPacketReceived(const QByteArray& data) {
         if (pending.actualSize == 0) {
             pending.actualSize = (pending.totalParts - 1) * SPACKET_MAX_DATA_SIZE + packet->dataSize;
         }
-
+        // qDebug() << "ggg";
         processCompleteFrame(frameId, pending);
         m_lastEmittedFrameId = frameId;
     }
@@ -72,7 +72,7 @@ void FrameManager::onSPacketReceived(const QByteArray& data) {
 void FrameManager::processCompleteFrame(uint64_t frameId, PendingFrame& frame)
 {
     // Защищаем декодер, так как он может быть заменен в setDecoderType из другого потока
-    std::lock_guard<std::mutex> lock(m_decoderMutex);
+    // std::lock_guard<std::mutex> lock(m_decoderMutex);
     if (!m_decoder) {
         return;
     }
