@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 
     qmlRegisterSingletonInstance("androidtools",1,0,"AndroidTools",pAndroidTools);
     qmlRegisterSingletonInstance("mapp",1,0,"MClient",pMClient);
-    qmlRegisterSingletonInstance("mapp",1,0,"MAppSettings",pMClient);
+    qmlRegisterSingletonInstance("mapp",1,0,"MAppSettings",&settings);
     qmlRegisterType<MPlayer>("mapp",1,0,"MPlayer");
     qmlRegisterType<Ms>("mapp", 1, 0, "MsEnums");
 

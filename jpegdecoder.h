@@ -24,6 +24,7 @@ private:
     // QImage сам управляет памятью. Храним его как член класса,
     // чтобы span, который мы возвращаем из decode(), оставался валидным.
     QImage m_lastImage;
+    QImage m_img;
     QVideoFrame m_videoFrame;
 };
 

@@ -64,8 +64,9 @@ void FrameManager::onSPacketReceived(const QByteArray& data) {
             pending.actualSize = (pending.totalParts - 1) * SPACKET_MAX_DATA_SIZE + packet->dataSize;
         }
         // qDebug() << "ggg";
-        processCompleteFrame(frameId, pending);
         m_lastEmittedFrameId = frameId;
+        processCompleteFrame(frameId, pending);
+
     }
 }
 
@@ -84,5 +85,21 @@ void FrameManager::processCompleteFrame(uint64_t frameId, PendingFrame& frame)
         emit frameComplete(videoFrame);
     } else {
         qDebug() << "FrameManager: Decoder returned invalid frame for ID" << frameId;
+    }
+}
+
+void FrameManager::cleanup(){
+    {
+        std::lock_guard<std::mutex> lock(m_decoderMutex);
+
+        m_lastEmittedFrameId = 0;
+
+        // Сбрасываем метаданные всех буферов
+        for (auto& buf : m_buffers) {
+            buf.currentFrameId = 0;
+            buf.receivedParts = 0;
+            buf.totalParts = 0;
+            buf.actualSize = 0;
+        }
     }
 }

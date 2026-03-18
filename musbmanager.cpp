@@ -100,6 +100,7 @@ void MUsbManager::startFindServer(){
 
 void MUsbManager::stopFindServer(){
     m_pFindTimer->stop();
+    m_socket->abort();
 }
 
 void MUsbManager::findServer(){

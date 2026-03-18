@@ -38,6 +38,7 @@ MClient::MClient(QObject *parent)
 
     //ConnectionClient signals
     connect(m_pConnectionClient,&ConnectionClient::raPacketReceived,this,&MClient::onRAPacketReceived);
+    connect(m_pConnectionClient,&ConnectionClient::sPacketReceived,m_pFrameManager,&FrameManager::onSPacketReceived);
 
     connect(m_pConnectionClient,&ConnectionClient::connected,this,&MClient::onConnected);
     connect(m_pConnectionClient,&ConnectionClient::disconnected,this,&MClient::onDisconnected);
@@ -79,27 +80,34 @@ void MClient::setUsbStatus(bool connected) {
 
 void MClient::setup(const QString &host, quint16 connectionPort, quint16 dataPort)
 {
+
     QMetaObject::invokeMethod(m_pConnectionClient, "setup",Qt::QueuedConnection,
                               Q_ARG(QString, host),
                               Q_ARG(quint16, connectionPort));
-
-    QMetaObject::invokeMethod(m_pDataClient, "setup",Qt::QueuedConnection,
-                              Q_ARG(QString, host),
-                              Q_ARG(uint16_t, dataPort));
+    if (MAppSettings::getInstance().connectionType == Ms::ConnectionType::Wireless){
+        QMetaObject::invokeMethod(m_pDataClient, "setup",Qt::QueuedConnection,
+                                  Q_ARG(QString, host),
+                                  Q_ARG(uint16_t, dataPort));
+    }
 }
 
 void MClient::connectToServer()
 {
     stopFindServer();
-    QMetaObject::invokeMethod(m_pDataClient, "connectToServer", Qt::QueuedConnection);
+
     QMetaObject::invokeMethod(m_pConnectionClient, "connectToServer", Qt::QueuedConnection);
+    if (MAppSettings::getInstance().connectionType == Ms::ConnectionType::Wireless){
+        QMetaObject::invokeMethod(m_pDataClient, "connectToServer", Qt::QueuedConnection);
+    }
 
 }
 
 void MClient::disconnectFromServer()
 {
     QMetaObject::invokeMethod(m_pConnectionClient, "disconnectFromServer", Qt::QueuedConnection);
-    QMetaObject::invokeMethod(m_pDataClient, "disconnectFromServer", Qt::QueuedConnection);
+    if (MAppSettings::getInstance().connectionType == Ms::ConnectionType::Wireless){
+        QMetaObject::invokeMethod(m_pDataClient, "disconnectFromServer", Qt::QueuedConnection);
+    }
     startFindServer();
 }
 
@@ -127,6 +135,7 @@ void MClient::onConnected(){
 }
 
 void MClient::onDisconnected(){
+    QMetaObject::invokeMethod(m_pFrameManager, "cleanup", Qt::QueuedConnection);
     emit disconnected();
 }
 
@@ -149,12 +158,12 @@ void MClient::onRDPacketReceived(const RDPacket& packet){
 }
 
 void MClient::startFindServer(){
-    QMetaObject::invokeMethod(m_pMUsbManager, "startFindServer", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(m_pMUsbManager, "startFindServer", Qt::BlockingQueuedConnection);
     m_serverFinding = true;
 }
 
 void MClient::stopFindServer(){
-    QMetaObject::invokeMethod(m_pMUsbManager, "stopFindServer", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(m_pMUsbManager, "stopFindServer", Qt::BlockingQueuedConnection);
     m_serverFinding = false;
 }
 

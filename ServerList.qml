@@ -204,7 +204,6 @@ Rectangle {
     function append(serverAddress, connectionPort, dataPort, connType) {
         var res = find(serverAddress)
         if (res < 0) {
-            console.log(connType);
             serverModel.append({
                 "serverAddress": serverAddress,
                 "connectionPort": connectionPort,
@@ -214,6 +213,21 @@ Rectangle {
         }
         else{
             requestTimerRestart(res)
+            // if (connType === 1 && serverModel.get(res).connType === 2){
+            //     requestTimerRestart(res)
+            //     serverModel.get(res).serverAddress = serverAddress;
+            //     serverModel.get(res).connectionPort = connectionPort;
+            //     serverModel.get(res).dataPort = dataPort;
+            //     serverModel.get(res).connType = connType;
+            // }
+            // else if (connType === 2 && serverModel.get(res).connType === 1){
+            //     serverModel.append({
+            //         "serverAddress": serverAddress,
+            //         "connectionPort": connectionPort,
+            //         "dataPort": dataPort,
+            //         "connectionType":connType
+            //     });
+            // }
         }
     }
 }

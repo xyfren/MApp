@@ -10,6 +10,7 @@ LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
 # PKGCONFIG += libavcodec libavformat libavutil libswscale libswresample
 
 SOURCES += \
+        TimeProfiler.cpp \
         ffmpegdecoder.cpp \
         framemanager.cpp \
         jpegdecoder.cpp \
@@ -37,6 +38,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
+    TimeProfiler.h \
     dpacket.h \
     androidtools.h \
     apacket.h \

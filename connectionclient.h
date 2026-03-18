@@ -11,6 +11,7 @@
 #include "apacket.h"
 #include "spacket.h"
 #include "dpacket.h"
+#include "TimeProfiler.h"
 
 class ConnectionClient: public QObject
 {
@@ -63,15 +64,19 @@ private slots:
     void onErrorOccurred(QAbstractSocket::SocketError error);
 
 private:
-    void processData(const QByteArray &data);
+    void processData();
+    void cleanup();
 
     QTcpSocket* m_socket;
+    QByteArray m_buffer;
+    QByteArray m_packetBuffer;
 
     QString m_serverAddress;
     uint16_t m_serverPort;
 
     QTimer *m_reconnectionTimer;
     int m_reconnectInterval;
+    int m_readOffset = 0;
 
     // bool m_manualDisconnect;
 };

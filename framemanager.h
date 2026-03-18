@@ -12,6 +12,7 @@
 #include <mappsettings.h>
 #include "ffmpegdecoder.h"
 #include "spacket.h"
+#include "TimeProfiler.h"
 
 class FrameManager : public QObject
 {
@@ -28,6 +29,8 @@ public slots:
     void setDecoderType(Ms::CoderType type);
     // Receives individual SPacket fragments from the network layer.
     void onSPacketReceived(const QByteArray& data);
+
+    void cleanup();
 
 private:
     struct PendingFrame {

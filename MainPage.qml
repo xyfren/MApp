@@ -30,7 +30,7 @@ Page {
 
             onServerClicked: function(serverAddress,connectionPort,dataPort,connType){
                 console.log("Подключаемся к:", serverAddress, connectionPort,connType)
-                MAppSettings.connectionType = connType;
+                MAppSettings.connection = connType;
                 MClient.setup(serverAddress,connectionPort,dataPort);
                 MClient.connectToServer();
             }

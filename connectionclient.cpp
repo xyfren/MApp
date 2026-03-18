@@ -22,6 +22,7 @@ ConnectionClient::ConnectionClient(QObject *parent)
     connect(m_socket, &QTcpSocket::stateChanged, this, &ConnectionClient::onStateChanged);
 
     // connect(m_reconnectionTimer, &QTimer::timeout, this, &ConnectionClient::reconnect);
+    m_packetBuffer.reserve(sizeof(SPacket));
 }
 
 ConnectionClient::~ConnectionClient()
@@ -124,6 +125,7 @@ void ConnectionClient::onConnected()
 
 void ConnectionClient::onDisconnected()
 {
+    cleanup();
     emit disconnected();
     addLog("Отключен от сервера");
 
@@ -148,13 +150,6 @@ void ConnectionClient::onErrorOccurred(QAbstractSocket::SocketError error)
     }
 }
 
-void ConnectionClient::onReadyRead()
-{
-    QByteArray data = m_socket->readAll();
-    qDebug() << "[Connection] Байты прочитаны: " << data.size();
-    processData(data);
-}
-
 void ConnectionClient::onBytesWritten(qint64 bytes)
 {
     qDebug() << "Байты отправлены: " << bytes;
@@ -167,26 +162,91 @@ void ConnectionClient::onStateChanged(QAbstractSocket::SocketState state)
     emit stateChanged(state);
 }
 
-void ConnectionClient::processData(const QByteArray& data){
-    qDebug() << "HAS NEW DATA";
-    if (data.size() < 2) return;
+// 1. В слоте чтения просто копируем всё в общий буфер
+void ConnectionClient::onReadyRead()
+{
+    m_buffer.append(m_socket->readAll());
+    processData(); // Теперь метод не принимает аргументов, а работает с m_buffer
+}
 
-    const qint16 packetType = *(reinterpret_cast<const uint16_t*>(data.data()));
-    qDebug() << "[Connection] Новый пакет: " + QString::number(packetType);
+// 2. Логика разбора буфера
+void ConnectionClient::processData()
+{
+    // Работаем с данными по смещению m_readOffset
+    while (m_buffer.size() >= (qsizetype)sizeof(uint16_t))
+    {
+        const uint16_t packetType = *reinterpret_cast<const uint16_t*>(m_buffer.constData());
+        qsizetype totalSize = 0;
 
-    if (packetType == 101){
-        RAPacket packet = RAPacket::fromBytes(data);
-        emit raPacketReceived(packet);
+        // 2. Определяем СКОЛЬКО БАЙТ всего в этом пакете на сетевом уровне
+        if (packetType == 101) {
+            totalSize = sizeof(RAPacket);
+        }
+        else if (packetType == 201) {
+            totalSize = sizeof(RDPacket);
+        }
+        else if (packetType == SPACKET_TYPE_H264 || packetType == SPACKET_TYPE_JPEG) {
+            // Чтобы узнать размер SPacket, нужно прочитать заголовок (20 байт)
+            if (m_buffer.size() < SPACKET_HEADER_SIZE) {
+                return; // Ждем догрузки заголовка
+            }
+
+            // Читаем dataSize из буфера, не удаляя его
+            // Поле dataSize находится на 18-м байте от начала структуры
+            uint16_t dSize;
+            std::memcpy(&dSize, m_buffer.constData() + 18, sizeof(uint16_t));
+            // test
+            // const SPacket* pPack = reinterpret_cast<const SPacket*>(m_buffer.constData());
+            // if (pPack->partId == 0){
+            //     TimeProfiler::instance().stamp("startFrame");
+            // }
+            // if (pPack->partId == pPack->totalParts - 1){
+            //     TimeProfiler::instance().stamp("endFrame");
+            // }
+
+            //end test
+            totalSize = SPACKET_HEADER_SIZE + dSize;
+
+            // Защита от гигантских/кривых пакетов
+            if (dSize > SPACKET_MAX_DATA_SIZE) {
+                qDebug() << "Критическая ошибка: dataSize слишком большой!" << dSize;
+                m_buffer.clear();
+                return;
+            }
+        }
+        else {
+            qDebug() << "[Connection] Неизвестный тип:" << packetType << ". Сброс буфера.";
+            m_buffer.clear();
+            return;
+        }
+
+        // 3. Проверяем, пришел ли пакет целиком
+        if (m_buffer.size() < totalSize) {
+            return; // Ждем догрузки оставшихся байт
+        }
+
+        // 4. Пакет в буфере целиком. Извлекаем его ОДНИМ куском.
+        QByteArray packetData = m_buffer.left(totalSize);
+        m_buffer.remove(0, totalSize);
+
+        // 5. Рассылаем сигналы
+        if (packetType == 101) {
+            emit raPacketReceived(RAPacket::fromBytes(packetData));
+        }
+        else if (packetType == 201) {
+            emit rdPacketReceived(RDPacket::fromBytes(packetData));
+        }
+        else {
+            // Для SPacket просто отправляем весь массив (Заголовок + Данные)
+            emit sPacketReceived(packetData);
+            // qDebug() << "[Connection] Пакет обработан. Тип:" << packetType << "Размер:" << totalSize;
+        }
     }
-    else if (packetType == SPACKET_TYPE_H264 || packetType == SPACKET_TYPE_JPEG){
-        qDebug() << "[Connection] Приш " ;
-        emit sPacketReceived(data);
-    }
-    else if (packetType == 201){
-        RDPacket packet = RDPacket::fromBytes(data);
-        emit rdPacketReceived(packet);
-    }
-    else {
-        qDebug() << "[Connection] Неизвестный пакет: " + QString::number(packetType);
-    }
+}
+
+void ConnectionClient::cleanup()
+{
+    m_buffer.clear();
+    m_packetBuffer.clear();
+    m_readOffset = 0;
 }
