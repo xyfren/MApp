@@ -91,7 +91,7 @@ void DataClient::onReadyRead(){
         quint16 senderPort;
 
         qint64 bytesRead = m_socket->readDatagram(datagram.data(), datagram.size(),
-                                                 &senderAddress, &senderPort);
+                                                  &senderAddress, &senderPort);
         // qDebug() << "Bytes read: " << bytesRead;
         if (bytesRead == -1) {
             emit errorOccurred("Failed to read datagram: " + m_socket->errorString());

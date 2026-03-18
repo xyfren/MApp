@@ -1,20 +1,29 @@
 #ifndef MAPPSETTINGS_H
 #define MAPPSETTINGS_H
 
+#include <QObject>
+#include <QtQmlIntegration/qqmlintegration.h>
 #include <atomic>
 
-enum class ConnectionType {
-    Null,Usb,Wireless
+class Ms: public QObject {
+    Q_OBJECT
+public:
+    enum class ConnectionType {
+        Null,Usb,Wireless
+    };
+    Q_ENUM(ConnectionType);
+
+    enum class CoderType {
+        Null, FFmpeg, Jpeg
+    };
+    Q_ENUM(CoderType) // Use Q_ENUM_NS for namespaces
 };
 
-enum class CoderType {
-    Null, FFmpeg, Jpeg
-};
 
 class MAppSettings {
 public:
-    std::atomic<CoderType> coderType = CoderType::Null;
-    std::atomic<ConnectionType> connectionType = ConnectionType::Null;
+    std::atomic<Ms::CoderType> coderType = Ms::CoderType::Null;
+    std::atomic<Ms::ConnectionType> connectionType = Ms::ConnectionType::Null;
     static MAppSettings& getInstance() {
         static MAppSettings instance;
         return instance;

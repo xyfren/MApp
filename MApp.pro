@@ -18,7 +18,8 @@ SOURCES += \
         connectionclient.cpp \
         dataclient.cpp \
         mclient.cpp \
-        mplayer.cpp
+        mplayer.cpp \
+        musbmanager.cpp
 
 resources.files = Main.qml MainPage.qml MonitorPage.qml LogArea.qml ServerList.qml MPlayerOutput.qml MButton.qml mclient.cpp androidtools.h mclient.h dpacket.h
 resources.prefix = /
@@ -49,6 +50,7 @@ HEADERS += \
     mappsettings.h \
     mclient.h \
     mplayer.h \
+    musbmanager.h \
     spacket.h
 
 DISTFILES += \
@@ -61,7 +63,9 @@ DISTFILES += \
     android/AndroidManifest.xml \
     android/build.gradle \
     android/res/values/libs.xml \
-    android/res/xml/qtprovider_paths.xml
+    android/res/xml/qtprovider_paths.xml \
+    android/src/mapp/UsbReceiver.java \
+    android/src/org/qtproject/example/UsbReceiver.java
 
 contains(ANDROID_TARGET_ARCH,arm64-v8a) {
     ANDROID_PACKAGE_SOURCE_DIR = \

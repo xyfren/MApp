@@ -3,7 +3,7 @@ import QtQuick.Window
 import QtQuick.Controls.Basic 2.15
 import QtQuick.Controls.Material
 import QtQuick.Layouts
-import mclient
+import mapp
 import androidtools
 
 ApplicationWindow {

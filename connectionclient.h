@@ -9,6 +9,8 @@
 #include <QTimer>
 #include <QErrorMessage>
 #include "apacket.h"
+#include "spacket.h"
+#include "dpacket.h"
 
 class ConnectionClient: public QObject
 {
@@ -28,12 +30,12 @@ public slots:
     void connectToServer();
     void disconnectFromServer();
 
-    void reconnect();
+    // void reconnect();
 
     void sendData(const QByteArray &data);
     void sendMessage(const QString &message);
 
-    void setReconnectionTimeout(int ms = 5000);
+    // void setReconnectionTimeout(int ms = 5000);
 
 signals:
     //внешние
@@ -44,6 +46,9 @@ signals:
     void dataSent(qint64 bytes);
 
     void raPacketReceived(const RAPacket& packet);
+    void rdPacketReceived(const RDPacket& packet);
+    void sPacketReceived(const QByteArray& data);
+
     // Сигналы ошибок
     void stateChanged(QAbstractSocket::SocketState state);
     void errorOccurred(const QString &errorString);
@@ -68,6 +73,6 @@ private:
     QTimer *m_reconnectionTimer;
     int m_reconnectInterval;
 
-    bool m_manualDisconnect;
+    // bool m_manualDisconnect;
 };
 #endif // CONNECTIONCLIENT_H

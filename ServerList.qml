@@ -3,16 +3,18 @@ import QtQuick.Controls.Basic 2.15
 import QtQuick.Controls.Material
 import QtQml.Models
 import QtQuick.Dialogs
-import mclient
+import mapp
 
 
 Rectangle {
+    id:root
     border.color: "gray"
     border.width: 1
     radius: 3
     clip:true
 
-    signal serverClicked(string serverAddress,int connectionPort,int dataPort)
+    signal serverClicked(string serverAddress,int connectionPort,int dataPort,int connectionType)
+    signal requestTimerRestart(int targetIndex)
 
     ListModel {
         id: serverModel
@@ -26,6 +28,7 @@ Rectangle {
         property string serverAddress: ""
         property int connectionPort: 0
         property int dataPort: 0
+        property int connectionType:0
 
         standardButtons: Dialog.Ok | Dialog.Cancel
 
@@ -46,7 +49,7 @@ Rectangle {
         }
 
         onAccepted: {
-            serverClicked(serverAddress,connectionPort,dataPort)
+            serverClicked(serverAddress,connectionPort,dataPort,connectionType)
         }
     }
     ListView {
@@ -85,17 +88,39 @@ Rectangle {
     Component {
         id: serverDelegate
 
-        Rectangle {
+        Rectangle {            
             required property string serverAddress
             required property int connectionPort
             required property int dataPort
+            required property int connectionType
             required property int index  // Добавляем index
+
             anchors.horizontalCenter: parent.horizontalCenter
+
             width: ListView.view.width - 20
             height: 48
             radius: 6
             color: "transparent"
 
+            Timer {
+                id: deleteTimer
+                interval: 5000
+                running: active
+                repeat: true
+                onTriggered: {
+                    serverModel.remove(index)
+                }
+            }
+
+            Connections {
+                target: root
+                function onRequestTimerRestart(targetIndex) {
+                    if (targetIndex === index) {
+                        deleteTimer.restart()
+                        console.log("Restarted timer at index:", targetIndex)
+                    }
+                }
+            }
 
             Rectangle {
                 id:del_rect
@@ -114,7 +139,7 @@ Rectangle {
 
                     Label {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "🌐"
+                        text: connectionType == 1 ? "🔌" : connectionType == 2 ? "🌐" : "None"
                         font.pixelSize: 20
                     }
 
@@ -139,11 +164,20 @@ Rectangle {
                 anchors.fill: parent
                 onClicked: {
                     serverList.currentIndex = index
-                    connectionDialog.serverAddress = serverAddress
-                    connectionDialog.connectionPort = connectionPort
-                    connectionDialog.dataPort = dataPort
-                    connectionDialog.open()
-
+                    if (connectionType == 1){
+                        connectionDialog.serverAddress = "127.0.0.1"
+                        connectionDialog.connectionPort = connectionPort
+                        connectionDialog.dataPort = connectionPort // по usb данные передаются на одном сокете
+                        connectionDialog.connectionType = connectionType
+                        connectionDialog.open()
+                    }
+                    else if (connectionType == 2){
+                        connectionDialog.serverAddress = serverAddress
+                        connectionDialog.connectionPort = connectionPort
+                        connectionDialog.dataPort = dataPort
+                        connectionDialog.connectionType = connectionType
+                        connectionDialog.open()
+                    }
                 }
                 onPressed: {
                     del_rect.color = "#c2fdff"
@@ -159,21 +193,27 @@ Rectangle {
         }
     }
 
-    function contains(serverAddress) {
+    function find(serverAddress) {
         for (var i = 0; i < serverModel.count; i++) {
             if (serverModel.get(i).serverAddress === serverAddress)
-                return true;
+                return i;
         }
-        return false;
+        return -1;
     }
 
-    function append(serverAddress, connectionPort, dataPort) {
-        if (!contains(serverAddress)) {
+    function append(serverAddress, connectionPort, dataPort, connType) {
+        var res = find(serverAddress)
+        if (res < 0) {
+            console.log(connType);
             serverModel.append({
                 "serverAddress": serverAddress,
                 "connectionPort": connectionPort,
-                "dataPort": dataPort
+                "dataPort": dataPort,
+                "connectionType":connType
             });
+        }
+        else{
+            requestTimerRestart(res)
         }
     }
 }

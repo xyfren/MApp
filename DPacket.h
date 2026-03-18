@@ -34,7 +34,7 @@ struct RDPacket {
     static RDPacket fromBytes(const QByteArray& data) {
         RDPacket packet;
 
-        if (data.size() < sizeof(RDPacket)) {
+        if (data.size() < static_cast<qsizetype>(sizeof(RDPacket))) {
             qWarning() << "Not enough data to reconstruct APacket";
 
         }

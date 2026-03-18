@@ -2,8 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
-import mplayer
-import mclient
+import mapp
 
 Rectangle {
     id: root

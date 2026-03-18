@@ -14,6 +14,7 @@
 #include "connectionclient.h"
 #include "dataclient.h"
 #include "framemanager.h"
+#include "musbmanager.h"
 
 #include "apacket.h"
 #include "dpacket.h"
@@ -28,6 +29,8 @@ public:
     ~MClient();
 
     static MClient* instance(QObject *parent = nullptr);
+
+    void setUsbStatus(bool connected);
 
     Q_INVOKABLE void setup(const QString &host,quint16 connectionPort,quint16 dataPort);
 
@@ -53,7 +56,9 @@ signals:
     void addLog(const QString &log);
     void errorOccurred(const QString &errorString);
 
-    void serverFound(const QString &serverAddress,quint16 connectionPort,quint16 dataPort);
+    void usbStatusChanged(bool connected);
+
+    void serverFound(const QString &serverAddress,quint16 connectionPort,quint16 dataPort,Ms::ConnectionType connType);
     void frameReceived(const QVideoFrame& frame);
 
     void connected();
@@ -75,9 +80,9 @@ private:
     ConnectionClient* m_pConnectionClient;
     DataClient* m_pDataClient;
     FrameManager* m_pFrameManager;
+    MUsbManager* m_pMUsbManager;
 
-    // QTimer* m_pFindTimer;
-    bool m_serverFinding;
+    bool m_serverFinding = false;
 };
 
 #endif // MCLIENT_H

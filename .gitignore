@@ -42,8 +42,6 @@ tags
 
 .DS_Store
 
-.directory
-
 *.debug
 
 Makefile*
@@ -252,7 +250,7 @@ moc_predefs.h
 
 # Android (if building for Android)
 
-android/
+# android/
 
 android-build/
 

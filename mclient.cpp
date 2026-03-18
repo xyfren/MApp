@@ -11,15 +11,22 @@ MClient::MClient(QObject *parent)
     DisplayParameters param = AndroidTools::getDisplayParameters();
     m_pFrameManager = new FrameManager(param.width,param.height);
 
+    m_pMUsbManager = new MUsbManager();
     // 2. Переносим его
     m_pConnectionClient->moveToThread(m_clientThread);
     m_pDataClient->moveToThread(m_clientThread);
     m_pFrameManager->moveToThread(m_clientThread);
+    m_pMUsbManager->moveToThread(m_clientThread);
     // 3. Запускаем поток
     m_clientThread->start();
 
+    connect(m_pMUsbManager,&MUsbManager::serverFound,[this](const QString &serverAddress, quint16 connectionPort, quint16 dataPort, Ms::ConnectionType connType){
+        emit serverFound(serverAddress,connectionPort,dataPort,connType);
+    });
+
     // DataClient signals
     connect(m_pDataClient,&DataClient::rdPacketReceived,this,&MClient::onRDPacketReceived);
+
     connect(m_pDataClient,&DataClient::sPacketReceived,m_pFrameManager,&FrameManager::onSPacketReceived);
 
     connect(m_pDataClient, &DataClient::addLog,[this](const QString& log){
@@ -47,9 +54,6 @@ MClient::MClient(QObject *parent)
     connect(m_pFrameManager,&FrameManager::frameComplete,[this](const QVideoFrame& frame){
         emit frameReceived(frame);
     });
-
-    // m_pFindTimer = new QTimer();
-    // connect(m_pFindTimer, &QTimer::timeout,this,&MClient::sendDPacket);
 }
 
 MClient::~MClient()
@@ -60,11 +64,17 @@ MClient::~MClient()
     m_pConnectionClient->deleteLater();
     m_pDataClient->deleteLater();
     m_pFrameManager->deleteLater();
+    m_pMUsbManager->deleteLater();
 }
 
 MClient* MClient::instance(QObject *parent){
     static MClient* pInstance_(new MClient(parent));
     return pInstance_;
+}
+
+void MClient::setUsbStatus(bool connected) {
+    // Просто испускаем сигнал. Qt сам разберется с очередью потоков.
+    emit usbStatusChanged(connected);
 }
 
 void MClient::setup(const QString &host, quint16 connectionPort, quint16 dataPort)
@@ -80,9 +90,10 @@ void MClient::setup(const QString &host, quint16 connectionPort, quint16 dataPor
 
 void MClient::connectToServer()
 {
+    stopFindServer();
     QMetaObject::invokeMethod(m_pDataClient, "connectToServer", Qt::QueuedConnection);
     QMetaObject::invokeMethod(m_pConnectionClient, "connectToServer", Qt::QueuedConnection);
-    stopFindServer();
+
 }
 
 void MClient::disconnectFromServer()
@@ -109,7 +120,7 @@ void MClient::sendMessage(const QString &message){
 }
 
 void MClient::onConnected(){
-    if (m_pDataClient->state() != QAbstractSocket::UnconnectedState){
+    if (m_pConnectionClient->state() != QAbstractSocket::UnconnectedState){
         sendAPacket();
         emit connected();
     }
@@ -132,20 +143,18 @@ void MClient::onRDPacketReceived(const RDPacket& packet){
         addLog(QHostAddress(packet.ipAddress).toString());
         addLog(QString::number(packet.response));
         if (packet.response == 0){
-            emit serverFound(QHostAddress(packet.ipAddress).toString(),packet.connectionPort,packet.dataPort);
+            emit serverFound(QHostAddress(packet.ipAddress).toString(),packet.connectionPort,packet.dataPort,Ms::ConnectionType::Wireless);
         }
     }
 }
 
 void MClient::startFindServer(){
-    // if (m_pFindTimer)
-    //     m_pFindTimer->start(3000);
+    QMetaObject::invokeMethod(m_pMUsbManager, "startFindServer", Qt::QueuedConnection);
     m_serverFinding = true;
 }
 
 void MClient::stopFindServer(){
-    // if (m_pFindTimer)
-    //     m_pFindTimer->stop();
+    QMetaObject::invokeMethod(m_pMUsbManager, "stopFindServer", Qt::QueuedConnection);
     m_serverFinding = false;
 }
 
@@ -173,13 +182,12 @@ void MClient::sendAPacket(){
     pack.connectionType = settings.connectionType;
 
     QMetaObject::invokeMethod(m_pFrameManager, "setDecoderType", Qt::QueuedConnection,
-                              Q_ARG(CoderType, settings.coderType));
+                              Q_ARG(Ms::CoderType, settings.coderType));
 
     sendDataC(pack.bytes());
 }
 
 void MClient::sendDPacket(){
-    // DPacket packet;
-    // QMetaObject::invokeMethod(m_pDataClient, "broadcastData", Qt::QueuedConnection,
-    //                           Q_ARG(QByteArray, packet.bytes()));
+    qDebug() << "Try connect";
+
 }

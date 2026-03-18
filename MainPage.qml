@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import mclient
+import mapp
 import QtCore
 import QtMultimedia
 
@@ -28,9 +28,9 @@ Page {
             Layout.preferredHeight: 200
             id:serverList
 
-            onServerClicked: function(serverAddress,connectionPort,dataPort){
-                console.log("Подключаемся к:", serverAddress, connectionPort)
-
+            onServerClicked: function(serverAddress,connectionPort,dataPort,connType){
+                console.log("Подключаемся к:", serverAddress, connectionPort,connType)
+                MAppSettings.connectionType = connType;
                 MClient.setup(serverAddress,connectionPort,dataPort);
                 MClient.connectToServer();
             }
@@ -53,8 +53,8 @@ Page {
         function onErrorOccurred(text){
             logArea.append("Error: " + text)
         }
-        function onServerFound(serverAddress,connectionPort,dataPort){
-            serverList.append(serverAddress,connectionPort,dataPort)
+        function onServerFound(serverAddress,connectionPort,dataPort,connType){
+            serverList.append(serverAddress,connectionPort,dataPort,connType)
         }
 
     }

@@ -7,7 +7,7 @@ ConnectionClient::ConnectionClient(QObject *parent)
     , m_serverPort(0)
     , m_reconnectionTimer(new QTimer(this))
     , m_reconnectInterval(5000)
-    , m_manualDisconnect(false)
+    // , m_manualDisconnect(false)
 {
 
     m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
@@ -21,7 +21,7 @@ ConnectionClient::ConnectionClient(QObject *parent)
     connect(m_socket, &QTcpSocket::bytesWritten, this, &ConnectionClient::onBytesWritten);
     connect(m_socket, &QTcpSocket::stateChanged, this, &ConnectionClient::onStateChanged);
 
-    connect(m_reconnectionTimer, &QTimer::timeout, this, &ConnectionClient::reconnect);
+    // connect(m_reconnectionTimer, &QTimer::timeout, this, &ConnectionClient::reconnect);
 }
 
 ConnectionClient::~ConnectionClient()
@@ -41,10 +41,8 @@ void ConnectionClient::setup(const QString &host, quint16 port)
 void ConnectionClient::connectToServer()
 {
     if (m_socket->state() != QAbstractSocket::UnconnectedState) {
-        // Если уже подключены или подключаемся - сначала отключаем
         disconnectFromServer();
 
-        // Ждем отключения через сигнал
         connect(m_socket, &QTcpSocket::disconnected, this, [this]() {
             disconnect(m_socket, &QTcpSocket::disconnected, this, nullptr);
             m_socket->connectToHost(m_serverAddress, m_serverPort);
@@ -104,18 +102,18 @@ void ConnectionClient::sendMessage(const QString &message){
 }
 
 
-void ConnectionClient::setReconnectionTimeout(int ms)
-{
-    m_reconnectionTimer->setInterval(ms);
-}
+// void ConnectionClient::setReconnectionTimeout(int ms)
+// {
+//     m_reconnectionTimer->setInterval(ms);
+// }
 
-void ConnectionClient::reconnect()
-{
-    addLog("Переподключение");
-    if (!m_serverAddress.isNull() && m_serverPort > 0) {
-        connectToServer();
-    }
-}
+// void ConnectionClient::reconnect()
+// {
+//     addLog("Переподключение");
+//     if (!m_serverAddress.isNull() && m_serverPort > 0) {
+//         connectToServer();
+//     }
+// }
 
 void ConnectionClient::onConnected()
 {
@@ -174,9 +172,21 @@ void ConnectionClient::processData(const QByteArray& data){
     if (data.size() < 2) return;
 
     const qint16 packetType = *(reinterpret_cast<const uint16_t*>(data.data()));
+    qDebug() << "[Connection] Новый пакет: " + QString::number(packetType);
 
     if (packetType == 101){
         RAPacket packet = RAPacket::fromBytes(data);
         emit raPacketReceived(packet);
+    }
+    else if (packetType == SPACKET_TYPE_H264 || packetType == SPACKET_TYPE_JPEG){
+        qDebug() << "[Connection] Приш " ;
+        emit sPacketReceived(data);
+    }
+    else if (packetType == 201){
+        RDPacket packet = RDPacket::fromBytes(data);
+        emit rdPacketReceived(packet);
+    }
+    else {
+        qDebug() << "[Connection] Неизвестный пакет: " + QString::number(packetType);
     }
 }

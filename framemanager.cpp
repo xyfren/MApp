@@ -11,7 +11,7 @@
 #include "jpegdecoder.h"
 #include "ffmpegdecoder.h"
 
-FrameManager::FrameManager(uint16_t width, uint16_t height, CoderType type, QObject* parent)
+FrameManager::FrameManager(uint16_t width, uint16_t height, Ms::CoderType type, QObject* parent)
     : QObject(parent)
     , m_width(width)
     , m_height(height)
@@ -22,13 +22,13 @@ FrameManager::FrameManager(uint16_t width, uint16_t height, CoderType type, QObj
     setDecoderType(type);
 }
 
-void FrameManager::setDecoderType(CoderType type)
+void FrameManager::setDecoderType(Ms::CoderType type)
 {
     std::lock_guard<std::mutex> lock(m_decoderMutex);
-    if (type == CoderType::Jpeg) {
+    if (type == Ms::CoderType::Jpeg) {
         m_decoder = std::make_unique<JpegDecoder>(m_width, m_height);
     }
-    else if (type == CoderType::FFmpeg) {
+    else if (type == Ms::CoderType::FFmpeg) {
         m_decoder = std::make_unique<FFmpegDecoder>(m_width, m_height);
     }
 }
@@ -71,7 +71,7 @@ void FrameManager::onSPacketReceived(const QByteArray& data) {
 
 void FrameManager::processCompleteFrame(uint64_t frameId, PendingFrame& frame)
 {
-    // Защищаем декодер, так как он может быть заменен в setDecoderType из другого потока
+    // Защищаем декодер, так как он может быть заменен в setDeMs::CoderType из другого потока
     // std::lock_guard<std::mutex> lock(m_decoderMutex);
     if (!m_decoder) {
         return;

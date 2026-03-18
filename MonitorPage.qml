@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import mclient
+import mapp
 import QtCore
 
 Page {

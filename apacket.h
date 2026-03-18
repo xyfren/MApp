@@ -14,8 +14,8 @@ struct APacket {
     quint16 refreshRate = 0;
     quint16 udpPort = 0;
 
-    CoderType coderType = CoderType::Null;
-    ConnectionType connectionType = ConnectionType::Null;
+    Ms::CoderType coderType = Ms::CoderType::Null;
+    Ms::ConnectionType connectionType = Ms::ConnectionType::Null;
 
     QByteArray bytes() const {
         QByteArray byteArray(sizeof(APacket), 0);
