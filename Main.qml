@@ -12,15 +12,10 @@ ApplicationWindow {
     height: 640
     visible: true
     title: "Screen"
-    flags: Qt.FramelessWindowHint | Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
+    flags: Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
     visibility: Window.Maximized
     property bool isFullScreen: false
 
-    onContentOrientationChanged: function (o){
-        console.log(o)
-        console.log("изм")
-
-    }
     onSafeAreaMarginsChanged: function(margins){
         if (isFullScreen){
             window.leftPadding = 0;
@@ -51,7 +46,7 @@ ApplicationWindow {
 
         }
         else{
-            window.flags = Qt.FramelessWindowHint | Qt.Window
+            window.flags = Qt.Window
             window.leftPadding = SafeArea.margins.left;
             window.rightPadding =  SafeArea.margins.right;
             window.topPadding =  SafeArea.margins.top;
@@ -68,10 +63,21 @@ ApplicationWindow {
     Connections {
         target: stackView.currentItem
         ignoreUnknownSignals: true
-        function onExitRequested() {
-            window.setFullScreen(false)
-            stackView.pop()
-            MClient.disconnectFromServer();
+        function onExitRequested(page) {
+            if (page === "Monitor"){
+                window.setFullScreen(false)
+                stackView.pop()
+                MClient.disconnectFromServer();
+            }
+            else if(page === "Settings"){
+                stackView.pop()
+            }
+            else {
+                stackView.pop()
+            }
+        }
+        function onNextPage(url){
+            stackView.push(url)
         }
     }
     Connections {
@@ -88,6 +94,4 @@ ApplicationWindow {
             }
         }
     }
-
-
 }

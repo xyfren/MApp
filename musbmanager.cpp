@@ -61,7 +61,7 @@ MUsbManager::MUsbManager(QObject *parent)
             qDebug() << QString::number(packet.response);
             if (packet.response == 0){
                 qDebug() << "Сервер доступен";
-                emit serverFound(QHostAddress(packet.ipAddress).toString(),packet.connectionPort,packet.dataPort,Ms::ConnectionType::Usb);
+                emit serverFound("usb",packet.connectionPort,packet.dataPort,Ms::ConnectionType::Usb);
             }
         }
     });

@@ -42,8 +42,9 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     MAppSettings& settings = MAppSettings::getInstance();
-    settings.coderType = Ms::CoderType::Jpeg;
-    settings.connectionType = Ms::ConnectionType::Wireless;
+
+    settings.setCoderType(Ms::CoderType::Jpeg);
+    settings.setRefreshRate(30);
 
     AndroidTools* pAndroidTools = new AndroidTools(&engine);
     MClient* pMClient = MClient::instance(&engine);
@@ -59,8 +60,10 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("androidtools",1,0,"AndroidTools",pAndroidTools);
     qmlRegisterSingletonInstance("mapp",1,0,"MClient",pMClient);
     qmlRegisterSingletonInstance("mapp",1,0,"MAppSettings",&settings);
+    qmlRegisterType<DisplayParameters>("mapp", 1, 0, "DisplayParameters");
     qmlRegisterType<MPlayer>("mapp",1,0,"MPlayer");
     qmlRegisterType<Ms>("mapp", 1, 0, "MsEnums");
+
 
     engine.load(QUrl("qrc:/Main.qml"));
 

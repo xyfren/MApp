@@ -6,10 +6,22 @@
 #include <QString>
 
 struct DisplayParameters {
+    Q_GADGET
+    Q_PROPERTY(quint16 width MEMBER width)
+    Q_PROPERTY(quint16 height MEMBER height)
+    Q_PROPERTY(quint16 refreshRate MEMBER refreshRate)
+
+public:
+    DisplayParameters() = default;
+    DisplayParameters(quint16 w, quint16 h, quint16 rr)
+        : width(w), height(h), refreshRate(rr) {}
+
     quint16 width = 0;
     quint16 height = 0;
     quint16 refreshRate = 0;
 };
+
+Q_DECLARE_METATYPE(DisplayParameters)
 
 class AndroidTools : public QObject {
     Q_OBJECT
@@ -19,7 +31,7 @@ class AndroidTools : public QObject {
 public:
     AndroidTools(QObject *parent = nullptr);
 
-    static DisplayParameters getDisplayParameters();
+    Q_INVOKABLE static DisplayParameters getDisplayParameters();
 
 public slots:
     static QJniObject getWindowManager();
@@ -27,9 +39,9 @@ public slots:
 
 
 private slots:
-    static quint16 getDisplayWidth();
-    static quint16 getDisplayHeigth();
-    static quint16 getDisplayRefreshRate();
+    Q_INVOKABLE static quint16 getDisplayWidth();
+    Q_INVOKABLE static quint16 getDisplayHeigth();
+    Q_INVOKABLE static quint16 getDisplayRefreshRate();
 
     Q_INVOKABLE void showToast(const QString &message);
 };

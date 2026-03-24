@@ -1,15 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import mapp
 import QtCore
 import QtMultimedia
+import mapp
 
 Page {
     id: page
 
     property string pageTitle: "Main"
-
     signal nextPage(string url)
 
     Component.onCompleted: {
@@ -41,6 +40,21 @@ Page {
             Layout.fillHeight: true
             Layout.preferredHeight: 200
             id:logArea
+        }
+
+        Row{
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: 25
+            MButton{
+                anchors.centerIn: parent
+                text: "Настройки"
+                width: parent.width / 2
+                height: parent.height
+                onClicked:{
+                    nextPage("SettingsPage.qml")
+                }
+            }
         }
 
     }

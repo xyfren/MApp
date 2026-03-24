@@ -5,7 +5,7 @@ import mapp
 import QtCore
 
 Page {
-    signal exitRequested()
+    signal exitRequested(string page)
 
     property string pageTitle: "Monitor"
 
@@ -20,7 +20,7 @@ Page {
 
     Shortcut {
         sequence: "Back"
-        onActivated: exitRequested()
+        onActivated: exitRequested(pageTitle)
     }
 
 

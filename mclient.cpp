@@ -7,11 +7,9 @@ MClient::MClient(QObject *parent)
     m_clientThread->start();
     m_pConnectionClient = new ConnectionClient();
     m_pDataClient = new DataClient();
-
-    DisplayParameters param = AndroidTools::getDisplayParameters();
-    m_pFrameManager = new FrameManager(param.width,param.height);
-
+    m_pFrameManager = new FrameManager();
     m_pMUsbManager = new MUsbManager();
+
     // 2. Переносим его
     m_pConnectionClient->moveToThread(m_clientThread);
     m_pDataClient->moveToThread(m_clientThread);
@@ -84,7 +82,7 @@ void MClient::setup(const QString &host, quint16 connectionPort, quint16 dataPor
     QMetaObject::invokeMethod(m_pConnectionClient, "setup",Qt::QueuedConnection,
                               Q_ARG(QString, host),
                               Q_ARG(quint16, connectionPort));
-    if (MAppSettings::getInstance().connectionType == Ms::ConnectionType::Wireless){
+    if (MAppSettings::getInstance().getConnectionType() == Ms::ConnectionType::Wireless){
         QMetaObject::invokeMethod(m_pDataClient, "setup",Qt::QueuedConnection,
                                   Q_ARG(QString, host),
                                   Q_ARG(uint16_t, dataPort));
@@ -96,7 +94,7 @@ void MClient::connectToServer()
     stopFindServer();
 
     QMetaObject::invokeMethod(m_pConnectionClient, "connectToServer", Qt::QueuedConnection);
-    if (MAppSettings::getInstance().connectionType == Ms::ConnectionType::Wireless){
+    if (MAppSettings::getInstance().getConnectionType() == Ms::ConnectionType::Wireless){
         QMetaObject::invokeMethod(m_pDataClient, "connectToServer", Qt::QueuedConnection);
     }
 
@@ -105,7 +103,7 @@ void MClient::connectToServer()
 void MClient::disconnectFromServer()
 {
     QMetaObject::invokeMethod(m_pConnectionClient, "disconnectFromServer", Qt::QueuedConnection);
-    if (MAppSettings::getInstance().connectionType == Ms::ConnectionType::Wireless){
+    if (MAppSettings::getInstance().getConnectionType() == Ms::ConnectionType::Wireless){
         QMetaObject::invokeMethod(m_pDataClient, "disconnectFromServer", Qt::QueuedConnection);
     }
     startFindServer();
@@ -180,18 +178,21 @@ void MClient::sendDataC(const QByteArray &data){
 void MClient::sendAPacket(){
     APacket pack;
     pack.type = 100;
-    DisplayParameters param = AndroidTools::getDisplayParameters();
-    pack.width = param.width;
-    pack.height = param.height;
-    pack.refreshRate = param.refreshRate;
-    pack.udpPort = m_pDataClient->localPort();
 
     MAppSettings& settings = MAppSettings::getInstance();
-    pack.coderType = settings.coderType;
-    pack.connectionType = settings.connectionType;
+    pack.width = settings.getWidth();
+    pack.height = settings.getHeight();
+    pack.refreshRate = settings.getRefreshRate();
+    pack.quality = settings.getQuality();
+    pack.coderType = settings.getCoderType();
+    pack.connectionType = settings.getConnectionType();
 
-    QMetaObject::invokeMethod(m_pFrameManager, "setDecoderType", Qt::QueuedConnection,
-                              Q_ARG(Ms::CoderType, settings.coderType));
+    pack.udpPort = m_pDataClient->localPort();
+
+    QMetaObject::invokeMethod(m_pFrameManager, "setupDecoder", Qt::QueuedConnection,
+                              Q_ARG(uint16_t, pack.width),
+                              Q_ARG(uint16_t, pack.height),
+                              Q_ARG(Ms::CoderType, settings.getCoderType()));
 
     sendDataC(pack.bytes());
 }

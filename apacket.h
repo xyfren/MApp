@@ -9,11 +9,12 @@
 #pragma pack(push, 1)
 struct APacket {
     quint16 type = 100;
+    quint16 udpPort = 0;
+
     quint16 width = 0;
     quint16 height = 0;
     quint16 refreshRate = 0;
-    quint16 udpPort = 0;
-
+    quint16 quality = 0;
     Ms::CoderType coderType = Ms::CoderType::Null;
     Ms::ConnectionType connectionType = Ms::ConnectionType::Null;
 

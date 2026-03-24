@@ -19,14 +19,14 @@ class FrameManager : public QObject
     Q_OBJECT
 
 public:
-    explicit FrameManager(uint16_t width, uint16_t height, Ms::CoderType type = Ms::CoderType::Null, QObject* parent = nullptr);
+    explicit FrameManager(QObject* parent = nullptr);
 
 signals:
     // Emitted when a complete frame has been decoded and is ready for display.
     void frameComplete(const QVideoFrame& frame);
 
 public slots:
-    void setDecoderType(Ms::CoderType type);
+    void setupDecoder(uint16_t width, uint16_t height, Ms::CoderType type);
     // Receives individual SPacket fragments from the network layer.
     void onSPacketReceived(const QByteArray& data);
 

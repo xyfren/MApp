@@ -11,19 +11,18 @@
 #include "jpegdecoder.h"
 #include "ffmpegdecoder.h"
 
-FrameManager::FrameManager(uint16_t width, uint16_t height, Ms::CoderType type, QObject* parent)
+FrameManager::FrameManager(QObject* parent)
     : QObject(parent)
-    , m_width(width)
-    , m_height(height)
 {
     for (auto& buf : m_buffers) {
         buf.data.resize(PREALLOCATED_SIZE);
     }
-    setDecoderType(type);
 }
 
-void FrameManager::setDecoderType(Ms::CoderType type)
+void FrameManager::setupDecoder(uint16_t width, uint16_t height, Ms::CoderType type)
 {
+    m_width = width;
+    m_height = height;
     std::lock_guard<std::mutex> lock(m_decoderMutex);
     if (type == Ms::CoderType::Jpeg) {
         m_decoder = std::make_unique<JpegDecoder>(m_width, m_height);

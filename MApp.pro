@@ -22,7 +22,7 @@ SOURCES += \
         mplayer.cpp \
         musbmanager.cpp
 
-resources.files = Main.qml MainPage.qml MonitorPage.qml LogArea.qml ServerList.qml MPlayerOutput.qml MButton.qml mclient.cpp androidtools.h mclient.h dpacket.h
+resources.files = Main.qml MainPage.qml MonitorPage.qml SettingsPage.qml LogArea.qml ServerList.qml MPlayerOutput.qml MButton.qml mclient.cpp androidtools.h mclient.h dpacket.h
 resources.prefix = /
 RESOURCES += resources
 
@@ -62,6 +62,7 @@ DISTFILES += \
     MainPage.qml \
     MonitorPage.qml \
     ServerList.qml \
+    SettingsPage.qml \
     android/AndroidManifest.xml \
     android/build.gradle \
     android/res/values/libs.xml \
