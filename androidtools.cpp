@@ -52,6 +52,39 @@ DisplayParameters AndroidTools::getDisplayParameters(){
     return param;
 }
 
+void AndroidTools::setOrientation(int orientation) {
+    auto activity = QJniObject::fromString("android/app/Activity");
+    activity = QNativeInterface::QAndroidApplication::context();
+    if (activity.isValid()) {
+        activity.callMethod<void>("setRequestedOrientation", "(I)V", orientation);
+    }
+}
+
+void AndroidTools::setKeepScreenOn(bool enabled) {
+    // Все манипуляции с Window в Android должны происходить в основном потоке (UI Thread)
+    // Используем лямбду для выполнения в UI-потоке Android
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([enabled]() {
+        // 1. Получаем activity как QJniObject
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+
+        if (activity.isValid()) {
+            // 2. Получаем окно (Window)
+            // Сигнатура: ()Landroid/view/Window;
+            QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
+
+            if (window.isValid()) {
+                const int FLAG_KEEP_SCREEN_ON = 128; // WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+
+                if (enabled) {
+                    window.callMethod<void>("addFlags", "(I)V", FLAG_KEEP_SCREEN_ON);
+                } else {
+                    window.callMethod<void>("clearFlags", "(I)V", FLAG_KEEP_SCREEN_ON);
+                }
+            }
+        }
+    });
+}
+
 quint16 AndroidTools::getDisplayWidth() {
     QJniObject display = getWindowManager().callObjectMethod("getDefaultDisplay", "()Landroid/view/Display;");
 

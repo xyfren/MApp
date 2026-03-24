@@ -32,6 +32,8 @@ public:
     AndroidTools(QObject *parent = nullptr);
 
     Q_INVOKABLE static DisplayParameters getDisplayParameters();
+    Q_INVOKABLE static void setOrientation(int orientation);
+    Q_INVOKABLE static void setKeepScreenOn(bool enabled);
 
 public slots:
     static QJniObject getWindowManager();

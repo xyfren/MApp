@@ -16,6 +16,10 @@ ApplicationWindow {
     visibility: Window.Maximized
     property bool isFullScreen: false
 
+    Component.onCompleted: {
+        AndroidTools.setOrientation(1);
+    }
+
     onSafeAreaMarginsChanged: function(margins){
         if (isFullScreen){
             window.leftPadding = 0;
@@ -66,6 +70,8 @@ ApplicationWindow {
         function onExitRequested(page) {
             if (page === "Monitor"){
                 window.setFullScreen(false)
+                AndroidTools.setOrientation(1);
+                AndroidTools.setKeepScreenOn(false);
                 stackView.pop()
                 MClient.disconnectFromServer();
             }
@@ -84,11 +90,15 @@ ApplicationWindow {
         target: MClient
         function onAuthorized(){
             window.setFullScreen(true)
+            AndroidTools.setOrientation(-1);
+            AndroidTools.setKeepScreenOn(true);
             stackView.push("MonitorPage.qml")
         }
         function onDisconnected(){
             if (stackView.currentItem.pageTitle === "Monitor"){
                 window.setFullScreen(false)
+                AndroidTools.setOrientation(1);
+                AndroidTools.setKeepScreenOn(false);
                 stackView.pop();
                 MClient.disconnectFromServer();
             }

@@ -43,9 +43,6 @@ int main(int argc, char *argv[])
 
     MAppSettings& settings = MAppSettings::getInstance();
 
-    settings.setCoderType(Ms::CoderType::Jpeg);
-    settings.setRefreshRate(30);
-
     AndroidTools* pAndroidTools = new AndroidTools(&engine);
     MClient* pMClient = MClient::instance(&engine);
 

@@ -8,8 +8,14 @@ import mapp
 Page {
     id: root
 
-    signal exitRequested(string page)
     property string pageTitle: "Settings"
+
+    signal exitRequested(string page)
+
+    function closePage(){
+        MAppSettings.save()
+        exitRequested(pageTitle)
+    }
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -28,7 +34,7 @@ Page {
 
                 model: [
                     {
-                        text: "Разрешение монитора (" + AndroidTools.getDisplayParameters().width + "x" + AndroidTools.getDisplayParameters().height + ")",
+                        text: "Разрешение монитора (" + AndroidTools.getDisplayParameters().width + "x" +  AndroidTools.getDisplayParameters().height + ")",
                         w: AndroidTools.getDisplayParameters().width,
                         h: AndroidTools.getDisplayParameters().height
                     },
@@ -38,19 +44,32 @@ Page {
 
                 // Устанавливаем корректный индекс при загрузке страницы
                 Component.onCompleted: {
-                    for (let i = 0; i < model.length; ++i) {
-                        if (model[i].w === MAppSettings.width && model[i].h === MAppSettings.height) {
-                            currentIndex = i
-                            break
+                    if (MAppSettings.useDefaultResolution){
+                        currentIndex = 0;
+                    }
+                    else{
+                        for (let i = 0; i < model.length; ++i) {
+                            if (model[i].w === MAppSettings.width && model[i].h === MAppSettings.height) {
+                                currentIndex = i
+                                break
+                            }
                         }
                     }
                 }
 
                 // При выборе пресета отправляем ширину и высоту в C++
                 onActivated: {
-                    let preset = model[currentIndex]
-                    MAppSettings.width = preset.w
-                    MAppSettings.height = preset.h
+                    if (currentIndex === 0){
+                        MAppSettings.useDefaultResolution = true;
+                        MAppSettings.width = AndroidTools.getDisplayParameters().width
+                        MAppSettings.height = AndroidTools.getDisplayParameters().height
+                    }
+                    else{
+                        MAppSettings.useDefaultResolution = false;
+                        let preset = model[currentIndex]
+                        MAppSettings.width = preset.w
+                        MAppSettings.height = preset.h
+                    }
                 }
             }
         }
@@ -100,18 +119,30 @@ Page {
 
                 // Устанавливаем корректный индекс при загрузке страницы
                 Component.onCompleted: {
-                    for (let i = 0; i < model.length; ++i) {
-                        if (model[i].refreshRate === MAppSettings.refreshRate) {
-                            currentIndex = i
-                            break
+                    if (MAppSettings.useDefaultRefreshRate){
+                        currentIndex = 0;
+                    }
+                    else{
+                        for (let i = 0; i < model.length; ++i) {
+                            if (model[i].refreshRate === MAppSettings.refreshRate) {
+                                currentIndex = i
+                                break
+                            }
                         }
                     }
                 }
 
                 // При выборе пресета отправляем ширину и высоту в C++
                 onActivated: {
-                    let preset = model[currentIndex]
-                    MAppSettings.refreshRate = preset.refreshRate
+                    if (currentIndex === 0){
+                        MAppSettings.useDefaultRefreshRate = true;
+                        MAppSettings.refreshRate = AndroidTools.getDisplayParameters().refreshRate
+                    }
+                    else{
+                        MAppSettings.useDefaultRefreshRate = false;
+                        let preset = model[currentIndex]
+                        MAppSettings.refreshRate = preset.refreshRate
+                    }
                 }
             }
         }
@@ -127,7 +158,6 @@ Page {
                 valueRole: "value"
                 Layout.fillWidth: true
                 model: [
-                    { text: "Не выбрано", value: 0 },
                     { text: "FFmpeg", value: 1},
                     { text: "JPEG", value: 2}
                 ]
@@ -139,6 +169,6 @@ Page {
     }
     Shortcut {
         sequence: "Back"
-        onActivated: exitRequested(pageTitle)
+        onActivated: closePage()
     }
 }
