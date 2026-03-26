@@ -250,10 +250,6 @@ moc_predefs.h
 
 # Android (if building for Android)
 
-# android/
-
-android-build/
-
 *.apk
 
 *.aab
@@ -415,3 +411,6 @@ tests/
 test-*
 
 *-test
+
+!android/
+!android/**/*
