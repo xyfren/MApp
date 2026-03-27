@@ -42,15 +42,18 @@ Page {
             id:logArea
         }
 
-        Row{
+        RowLayout{
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.preferredHeight: 25
+            Layout.preferredHeight: 50
+            Layout.alignment: Qt.AlignCenter
+
             MButton{
-                anchors.centerIn: parent
+                Layout.alignment: Qt.AlignCenter
+
                 text: "Настройки"
-                width: parent.width / 2
-                height: parent.height
+                implicitWidth : 200
+                implicitHeight: 50
                 onClicked:{
                     nextPage("SettingsPage.qml")
                 }

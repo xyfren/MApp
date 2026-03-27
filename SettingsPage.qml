@@ -18,11 +18,14 @@ Page {
     }
 
     ColumnLayout {
-        anchors.centerIn: parent
+        anchors.fill: parent
         anchors.margins: 10
         spacing: 15
-
+        Item {
+            Layout.fillHeight: true
+        }
         RowLayout {
+            Layout.alignment: Qt.AlignCenter
             Label {
                 text: "Разрешение:"
                 Layout.preferredWidth: 120
@@ -76,6 +79,8 @@ Page {
 
         // --- Настройка качества (Slider) ---
         RowLayout {
+            Layout.alignment: Qt.AlignCenter
+
             Label {
                 text: "Качество:"
                 Layout.preferredWidth: 120
@@ -101,6 +106,8 @@ Page {
 
         // --- Настройка частоты обновления ---
         RowLayout {
+            Layout.alignment: Qt.AlignCenter
+
             Label {
                 text: "Частота кадров:"
                 Layout.preferredWidth: 120
@@ -149,6 +156,8 @@ Page {
 
         // --- Выбор кодировщика ---
         RowLayout {
+            Layout.alignment: Qt.AlignCenter
+
             Label {
                 text: "Кодировщик:"
                 Layout.preferredWidth: 120
@@ -165,6 +174,9 @@ Page {
                 Component.onCompleted: currentIndex = indexOfValue(MAppSettings.coder)
                 onActivated: MAppSettings.coder = currentValue
             }
+        }
+        Item {
+            Layout.fillHeight: true
         }
     }
     Shortcut {

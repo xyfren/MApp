@@ -28,12 +28,12 @@ public:
 
 class MAppSettings: public QObject {
     Q_OBJECT
-    Q_PROPERTY(Ms::CoderType coder READ getCoderType WRITE setCoderType)
+    Q_PROPERTY(Ms::CoderType coder READ getCoderType WRITE setCoderType NOTIFY coderChanged)
     Q_PROPERTY(Ms::ConnectionType connection READ getConnectionType WRITE setConnectionType)
-    Q_PROPERTY(int width READ getWidth WRITE setWidth)
-    Q_PROPERTY(int height READ getHeight WRITE setHeight)
-    Q_PROPERTY(int refreshRate READ getRefreshRate WRITE setRefreshRate)
-    Q_PROPERTY(int quality READ getQuality WRITE setQuality)
+    Q_PROPERTY(int width READ getWidth WRITE setWidth NOTIFY widthChanged)
+    Q_PROPERTY(int height READ getHeight WRITE setHeight NOTIFY heightChanged)
+    Q_PROPERTY(int refreshRate READ getRefreshRate WRITE setRefreshRate NOTIFY refreshRateChanged)
+    Q_PROPERTY(int quality READ getQuality WRITE setQuality NOTIFY qualityChanged)
     Q_PROPERTY(bool useDefaultResolution READ getUseDefaultResolution WRITE setUseDefaultResolution)
     Q_PROPERTY(bool useDefaultRefreshRate READ getUseDefaultRefreshRate WRITE setUseDefaultRefreshRate)
     QML_ELEMENT
@@ -96,22 +96,6 @@ public:
         qDebug() << "RefreshRate:" << m_refreshRate;
     }
 
-    Ms::CoderType getCoderType() const {
-        return m_coderType;
-    }
-
-    Ms::ConnectionType getConnectionType() const {
-        return m_connectionType;
-    }
-
-    void setCoderType(Ms::CoderType aCoderType){
-        m_coderType = aCoderType;
-    }
-
-    void setConnectionType(Ms::ConnectionType aConnectionType){
-        m_connectionType = aConnectionType;
-    }
-
     // Getters for new fields
     int getWidth() const {
         return m_width;
@@ -137,30 +121,65 @@ public:
         return m_useDefaultRefreshRate;
     }
 
+    Ms::CoderType getCoderType() const {
+        return m_coderType;
+    }
+
+    Ms::ConnectionType getConnectionType() const {
+        return m_connectionType;
+    }
+
     // Setters for new fields with notifications
     void setWidth(int width) {
+        if (m_width == width) return;
         m_width = width;
+        emit widthChanged();
     }
 
     void setHeight(int height) {
+        if (m_height == height) return;
         m_height = height;
+        emit heightChanged();
     }
 
     void setRefreshRate(int refreshRate) {
+        if (m_refreshRate == refreshRate) return;
         m_refreshRate = refreshRate;
+        emit refreshRateChanged();
     }
 
     void setQuality(int quality){
+        if (m_quality == quality) return;
         m_quality = quality;
+        emit qualityChanged();
     }
 
     void setUseDefaultResolution(bool useDefaultResolution){
+        if (m_useDefaultResolution == useDefaultResolution) return;
         m_useDefaultResolution = useDefaultResolution;
     }
 
     void setUseDefaultRefreshRate(bool useDefaultRefreshRate){
+        if (m_useDefaultRefreshRate == useDefaultRefreshRate) return;
         m_useDefaultRefreshRate = useDefaultRefreshRate;
     }
+
+    void setCoderType(Ms::CoderType aCoderType){
+        if (m_coderType == aCoderType) return;
+        m_coderType = aCoderType;
+        emit coderChanged();
+    }
+
+    void setConnectionType(Ms::ConnectionType aConnectionType){
+        m_connectionType = aConnectionType;
+    }
+
+signals:
+    void coderChanged();
+    void widthChanged();
+    void heightChanged();
+    void refreshRateChanged();
+    void qualityChanged();
 
 private:
     MAppSettings(){
