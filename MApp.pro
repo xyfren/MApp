@@ -6,6 +6,21 @@ INCLUDEPATH += C:/libs/ffmpeg/android-armv8/include
 LIBS += -LC:/libs/ffmpeg/android-armv8/lib
 LIBS += -lavcodec -lavformat -lavutil -lswscale -lswresample
 
+VERSION = 1.0.0
+
+android {
+    # Покрываем 95% устройств
+    ANDROID_MIN_SDK_VERSION = 21
+
+    # Целевая версия - последняя стабильная
+    ANDROID_TARGET_SDK_VERSION = 33
+
+    # Компилируем с последним SDK
+    ANDROID_SDK_VERSION = 33
+
+    # Поддерживаемые архитектуры
+    ANDROID_ABIS = arm64-v8a
+}
 # CONFIG += link_pkgconfig
 # PKGCONFIG += libavcodec libavformat libavutil libswscale libswresample
 
